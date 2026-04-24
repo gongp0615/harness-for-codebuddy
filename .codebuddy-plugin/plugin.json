@@ -1,7 +1,7 @@
 {
   "name": "harness-engineer",
   "version": "0.1.0-alpha.0",
-  "description": "CodeBuddy Code CLI supervised engineering harness with planning, safety, verification, and recovery gates.",
+  "description": "CodeBuddy Code CLI plugin for planning, verification, recovery, and safe engineering workflows.",
   "author": {
     "name": "Harness Engineer Maintainers",
     "email": "noreply@example.com",
@@ -18,8 +18,8 @@
   "bin": "./bin/",
   "interface": {
     "displayName": "Harness Engineer",
-    "shortDescription": "Supervised engineering harness for CodeBuddy Code CLI.",
-    "longDescription": "Provides CodeBuddy-native planning, role prompts, safety checks, verification evidence, recovery, and completion gates for software engineering tasks.",
+    "shortDescription": "Planning, verification, recovery, and safety workflow plugin for CodeBuddy Code CLI.",
+    "longDescription": "Provides CodeBuddy-specific slash commands, skills, agents, hooks, safety checks, verification evidence, and recovery flow for software engineering tasks.",
     "developerName": "Harness Engineer Maintainers",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write", "Automation"],

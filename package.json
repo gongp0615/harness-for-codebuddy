@@ -2,7 +2,7 @@
   "name": "harness-for-codebuddy",
   "version": "0.1.0-alpha.0",
   "private": true,
-  "description": "CodeBuddy Code CLI supervised engineering harness plugin.",
+  "description": "CodeBuddy Code CLI plugin for planning, verification, recovery, and safe engineering workflows.",
   "homepage": "https://github.com/gongp0615/harness-for-codebuddy#readme",
   "repository": {
     "type": "git",

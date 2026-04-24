@@ -36,7 +36,7 @@ function writeMarketplace(marketplaceDir) {
       {
         name: PLUGIN_NAME,
         version: "0.1.0-alpha.0",
-        description: "CodeBuddy Code CLI supervised engineering harness.",
+        description: "CodeBuddy Code CLI plugin for planning, verification, recovery, and safe engineering workflows.",
         source: `./plugins/${PLUGIN_NAME}`
       }
     ]
