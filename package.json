@@ -1,0 +1,23 @@
+{
+  "name": "harness-engineer-codebuddy",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "description": "CodeBuddy Code CLI supervised engineering harness plugin.",
+  "homepage": "https://github.com/gongp0615/harness-engineer#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gongp0615/harness-engineer.git"
+  },
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "harness": "./bin/harness"
+  },
+  "scripts": {
+    "harness": "node scripts/cli.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

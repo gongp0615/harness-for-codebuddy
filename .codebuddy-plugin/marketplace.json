@@ -1,0 +1,13 @@
+{
+  "name": "harness-engineer-local",
+  "displayName": "Harness Engineer",
+  "description": "Local marketplace entry for the Harness Engineer CodeBuddy plugin.",
+  "plugins": [
+    {
+      "name": "harness-engineer",
+      "version": "0.1.0-alpha.0",
+      "description": "CodeBuddy Code CLI supervised engineering harness.",
+      "source": "."
+    }
+  ]
+}
