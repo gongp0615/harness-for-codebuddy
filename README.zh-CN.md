@@ -22,7 +22,7 @@ bash install.sh
 从 GitHub 安装：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gongp0615/harness-engineer/refs/heads/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gongp0615/harness-for-codebuddy/refs/heads/main/install.sh | bash
 ```
 
 安装器会写入本地 CodeBuddy marketplace：

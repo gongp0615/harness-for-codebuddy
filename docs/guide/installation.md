@@ -9,7 +9,7 @@
 ## Install From GitHub
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gongp0615/harness-engineer/refs/heads/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gongp0615/harness-for-codebuddy/refs/heads/main/install.sh | bash
 ```
 
 ## Install From A Local Checkout
@@ -22,7 +22,7 @@ bash install.sh
 
 ```bash
 CODEBUDDY_HOME="$HOME/.codebuddy"
-HARNESS_REPO="gongp0615/harness-engineer"
+HARNESS_REPO="gongp0615/harness-for-codebuddy"
 HARNESS_REF="main"
 ```
 

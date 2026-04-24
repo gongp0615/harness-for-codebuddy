@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HARNESS_REPO="${HARNESS_REPO:-gongp0615/harness-engineer}"
+HARNESS_REPO="${HARNESS_REPO:-gongp0615/harness-for-codebuddy}"
 HARNESS_REF="${HARNESS_REF:-main}"
 CODEBUDDY_HOME="${CODEBUDDY_HOME:-$HOME/.codebuddy}"
 
@@ -24,8 +24,8 @@ else
   cleanup() { rm -rf "$tmp"; }
   trap cleanup EXIT
   echo "Installing harness-engineer from https://github.com/${HARNESS_REPO} (${HARNESS_REF})"
-  git clone --depth 1 --branch "$HARNESS_REF" "https://github.com/${HARNESS_REPO}.git" "$tmp/harness-engineer"
-  source_dir="$tmp/harness-engineer"
+  git clone --depth 1 --branch "$HARNESS_REF" "https://github.com/${HARNESS_REPO}.git" "$tmp/harness-for-codebuddy"
+  source_dir="$tmp/harness-for-codebuddy"
 fi
 
 node "$source_dir/scripts/cli.js" install --source "$source_dir" --home "$CODEBUDDY_HOME"

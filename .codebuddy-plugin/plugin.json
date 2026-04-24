@@ -7,8 +7,8 @@
     "email": "noreply@example.com",
     "url": "https://github.com/gongp0615"
   },
-  "homepage": "https://github.com/gongp0615/harness-engineer",
-  "repository": "https://github.com/gongp0615/harness-engineer.git",
+  "homepage": "https://github.com/gongp0615/harness-for-codebuddy",
+  "repository": "https://github.com/gongp0615/harness-for-codebuddy.git",
   "license": "MIT",
   "keywords": ["codebuddy", "engineering", "verification", "agents", "harness"],
   "commands": "./commands/",
@@ -23,9 +23,9 @@
     "developerName": "Harness Engineer Maintainers",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write", "Automation"],
-    "websiteURL": "https://github.com/gongp0615/harness-engineer",
-    "privacyPolicyURL": "https://github.com/gongp0615/harness-engineer",
-    "termsOfServiceURL": "https://github.com/gongp0615/harness-engineer",
+    "websiteURL": "https://github.com/gongp0615/harness-for-codebuddy",
+    "privacyPolicyURL": "https://github.com/gongp0615/harness-for-codebuddy",
+    "termsOfServiceURL": "https://github.com/gongp0615/harness-for-codebuddy",
     "defaultPrompt": [
       "/harness-engineer:plan add tests for the flaky retry path",
       "/harness-engineer:verify",
