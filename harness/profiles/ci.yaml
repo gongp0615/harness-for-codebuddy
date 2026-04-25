@@ -1,0 +1,5 @@
+name: ci
+steps:
+  - name: default
+    command: npm run harness -- verify --profile default --json
+    required: true

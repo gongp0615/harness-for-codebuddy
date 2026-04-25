@@ -4,6 +4,7 @@ allowed-tools: Bash, Read, Write
 argument-hint: <task>
 ---
 
-Create a concise implementation plan for this task, then save it under `.harness-engineer/plans/`.
+Run `harness plan --task "$ARGUMENTS"` to persist the active task in `.harness-engineer/task.json` and `.harness-engineer/plan.md`.
+Then summarize the recorded plan, expected verification profile, and any immediate risks.
 
 Task: $ARGUMENTS

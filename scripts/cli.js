@@ -3,9 +3,12 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const cp = require("node:child_process");
 const { installCodeBuddyPlugin } = require("./installer");
-const { pluginRoot, readJson } = require("./paths");
+const { pluginRoot } = require("./paths");
+const { discoverVerificationCommands } = require("./harness-engine/verification-discovery");
+const { evidenceSummary, initProject, planTask, recover, status } = require("./harness-engine/state");
+const { evaluatePolicy } = require("./harness-engine/policy");
+const { legacyVerify, runProfile } = require("./harness-engine/profile-runner");
 
 function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
   const command = argv[0] || "status";
@@ -19,21 +22,46 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
       process.stdout.write(`harness-engineer installed for CodeBuddy\nPlugin: ${result.plugin_dir}\nMarketplace: ${result.marketplace_dir}\nSettings: ${result.settings_path}\n`);
       return 0;
     }
+    if (command === "init") {
+      printJson(initProject(cwd, { profile: parseOption(argv, "--profile") || "generic" }));
+      return 0;
+    }
+    if (command === "plan") {
+      printJson(planTask(cwd, {
+        task: parseOption(argv, "--task") || positionalText(argv.slice(1)),
+        id: parseOption(argv, "--id")
+      }));
+      return 0;
+    }
     if (command === "status") {
       printJson(status(cwd));
       return 0;
     }
     if (command === "verify") {
-      const result = verify(cwd);
+      const profile = parseOption(argv, "--profile");
+      const result = profile ? runProfile(cwd, { profile }) : verify(cwd);
       printJson(result);
       return result.ok ? 0 : 1;
+    }
+    if (command === "recover") {
+      printJson(recover(cwd));
+      return 0;
+    }
+    if (command === "evidence") {
+      printJson(evidenceSummary(cwd));
+      return 0;
+    }
+    if (command === "policy-check") {
+      const result = evaluatePolicy(cwd, { tool_name: "Bash", tool_input: { command: parseOption(argv, "--command") || "" } });
+      printJson(result);
+      return result.decision === "block" ? 2 : 0;
     }
     if (command === "explain") {
       printJson({
         plugin_root: pluginRoot(),
         project_root: cwd,
-        commands: ["doctor", "install", "status", "verify"],
-        state_file: path.join(cwd, ".harness-engineer", "state.json")
+        commands: ["doctor", "install", "init", "plan", "status", "verify", "recover", "evidence", "policy-check"],
+        state_file: path.join(cwd, ".harness-engineer", "task.json")
       });
       return 0;
     }
@@ -46,10 +74,23 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
 }
 
 function parseRoot(argv) {
-  const index = argv.indexOf("--root");
+  return parsePathOption(argv, "--root");
+}
+
+function parsePathOption(argv, name) {
+  const value = parseOption(argv, name);
+  return value ? path.resolve(value) : undefined;
+}
+
+function parseOption(argv, name) {
+  const index = argv.indexOf(name);
   if (index === -1) return undefined;
-  if (!argv[index + 1]) throw new Error("--root requires a path");
-  return path.resolve(argv[index + 1]);
+  if (!argv[index + 1]) throw new Error(`${name} requires a value`);
+  return argv[index + 1];
+}
+
+function positionalText(args) {
+  return args.filter((arg, index) => !arg.startsWith("--") && !args[index - 1]?.startsWith("--")).join(" ");
 }
 
 function parseInstallArgs(args) {
@@ -80,9 +121,15 @@ function doctor(root) {
     check(root, "hooks/hooks.json", "CodeBuddy hook registry"),
     check(root, "bin/harness", "CodeBuddy bin launcher"),
     check(root, "scripts/cli.js", "CLI entrypoint"),
+    check(root, "scripts/harness-engine/state.js", "Harness state engine"),
+    check(root, "scripts/harness-engine/profile-runner.js", "Harness profile runner"),
+    check(root, "scripts/harness-engine/policy.js", "Harness policy engine"),
     check(root, "commands/doctor.md", "doctor slash command"),
+    check(root, "commands/init.md", "init slash command"),
+    check(root, "commands/evidence.md", "evidence slash command"),
     check(root, "skills/harness-plan/SKILL.md", "harness-plan skill"),
-    check(root, "agents/planner.md", "planner agent")
+    check(root, "agents/planner.md", "planner agent"),
+    check(root, "docs/ai-engineering/workflow.md", "team workflow documentation")
   ];
   return { ok: checks.every((item) => item.ok), root, checks };
 }
@@ -95,59 +142,8 @@ function check(root, relativePath, name) {
   };
 }
 
-function status(projectRoot) {
-  const statePath = path.join(projectRoot, ".harness-engineer", "state.json");
-  return {
-    plugin_root: pluginRoot(),
-    project_root: projectRoot,
-    codebuddy_home: process.env.CODEBUDDY_HOME || path.join(process.env.HOME || "", ".codebuddy"),
-    state: readJson(statePath, { active_task_id: null, tasks: [], updated_at: null })
-  };
-}
-
 function verify(projectRoot) {
-  const commands = discoverVerificationCommands(projectRoot);
-  const results = commands.map((command) => runCommand(command, projectRoot));
-  return {
-    ok: results.every((result) => result.exit_code === 0),
-    project_root: projectRoot,
-    commands,
-    results
-  };
-}
-
-function discoverVerificationCommands(projectRoot) {
-  const packagePath = path.join(projectRoot, "package.json");
-  if (!fs.existsSync(packagePath)) return [];
-  const pkg = readJson(packagePath, {});
-  const scripts = pkg.scripts || {};
-  const commands = [];
-  for (const name of ["typecheck", "lint", "test", "build"]) {
-    if (scripts[name]) {
-      commands.push(name === "test" ? "npm test" : `npm run ${name}`);
-    }
-  }
-  return commands;
-}
-
-function runCommand(command, cwd) {
-  const result = cp.spawnSync(command, {
-    cwd,
-    shell: true,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-  return {
-    command,
-    exit_code: result.status ?? 1,
-    stdout: trimOutput(result.stdout),
-    stderr: trimOutput(result.stderr)
-  };
-}
-
-function trimOutput(value) {
-  const text = value || "";
-  return text.length > 8000 ? `${text.slice(0, 8000)}\n...<truncated>` : text;
+  return legacyVerify(projectRoot);
 }
 
 function printJson(value) {

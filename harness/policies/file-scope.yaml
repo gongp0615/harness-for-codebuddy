@@ -1,0 +1,10 @@
+allowed_roots:
+  - .
+blocked_roots:
+  - /etc
+  - /bin
+  - /sbin
+  - /usr
+  - /var
+  - /System
+  - "C:\\Windows"

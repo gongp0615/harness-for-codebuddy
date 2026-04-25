@@ -5,4 +5,4 @@ description: Use to inspect Harness Engineer state in the current CodeBuddy proj
 
 # Harness Status
 
-Run `harness status` and use the state output to summarize active work, pending verification, and known blockers.
+Run `harness status --json` and use the state output to summarize active work, pending verification, known risks, and blockers.

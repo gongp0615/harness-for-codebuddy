@@ -1,0 +1,113 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const test = require("node:test");
+
+const { initProject, planTask, recover, status, evidenceSummary } = require("../scripts/harness-engine/state");
+const { runProfile } = require("../scripts/harness-engine/profile-runner");
+const { evaluatePolicy } = require("../scripts/harness-engine/policy");
+
+function tempProject(name = "harness-engine-") {
+  return fs.mkdtempSync(path.join(os.tmpdir(), name));
+}
+
+test("initProject creates harness state and configuration templates", () => {
+  const root = tempProject();
+  const result = initProject(root, { profile: "generic" });
+
+  assert.equal(result.ok, true);
+  assert.equal(fs.existsSync(path.join(root, ".harness-engineer", "task.json")), true);
+  assert.equal(fs.existsSync(path.join(root, ".harness-engineer", "plan.md")), true);
+  assert.equal(fs.existsSync(path.join(root, ".harness-engineer", "evidence.json")), true);
+  assert.equal(fs.existsSync(path.join(root, ".harness-engineer", "risks.md")), true);
+  assert.equal(fs.existsSync(path.join(root, "harness", "profiles", "default.yaml")), true);
+  assert.equal(fs.existsSync(path.join(root, "harness", "policies", "shell-policy.yaml")), true);
+
+  const current = status(root);
+  assert.equal(current.task.status, "NEW");
+  assert.equal(current.state.active_task_id, current.task.task_id);
+});
+
+test("planTask records task metadata and recover suggests verification", () => {
+  const root = tempProject();
+  initProject(root);
+
+  const planned = planTask(root, { task: "Add checkout retry tests", id: "TASK-42" });
+  assert.equal(planned.task.task_id, "TASK-42");
+  assert.equal(planned.task.status, "PLANNED");
+  assert.match(fs.readFileSync(path.join(root, ".harness-engineer", "plan.md"), "utf8"), /Add checkout retry tests/);
+
+  const next = recover(root);
+  assert.equal(next.task_id, "TASK-42");
+  assert.match(next.next_step, /execute/i);
+});
+
+test("runProfile executes configured steps and writes evidence", () => {
+  const root = tempProject();
+  initProject(root);
+  fs.writeFileSync(
+    path.join(root, "harness", "profiles", "default.yaml"),
+    [
+      "name: default",
+      "steps:",
+      "  - name: pass",
+      "    command: node -e \"process.stdout.write('ok')\"",
+      "    required: true"
+    ].join("\n")
+  );
+
+  const result = runProfile(root, { profile: "default" });
+  assert.equal(result.ok, true);
+  assert.equal(result.evidence.status, "VERIFIED");
+  assert.equal(result.evidence.steps[0].name, "pass");
+  assert.equal(result.evidence.steps[0].exit_code, 0);
+  assert.equal(fs.existsSync(path.join(root, ".harness-engineer", "evidence.json")), true);
+});
+
+test("runProfile records failed required step and failed verification state", () => {
+  const root = tempProject();
+  initProject(root);
+  fs.writeFileSync(
+    path.join(root, "harness", "profiles", "default.yaml"),
+    [
+      "name: default",
+      "steps:",
+      "  - name: fail",
+      "    command: node -e \"process.exit(7)\"",
+      "    required: true"
+    ].join("\n")
+  );
+
+  const result = runProfile(root, { profile: "default" });
+  assert.equal(result.ok, false);
+  assert.equal(result.evidence.status, "FAILED_VERIFICATION");
+  assert.equal(status(root).task.status, "FAILED_VERIFICATION");
+});
+
+test("evaluatePolicy reads policy files for block, warn, approval, and file scope", () => {
+  const root = tempProject();
+  initProject(root);
+
+  assert.equal(evaluatePolicy(root, { tool_name: "Bash", tool_input: { command: "git reset --hard" } }).decision, "block");
+  assert.equal(evaluatePolicy(root, { tool_name: "Bash", tool_input: { command: "npm publish" } }).decision, "approval");
+  assert.equal(evaluatePolicy(root, { tool_name: "Bash", tool_input: { command: "git push origin main" } }).decision, "warn");
+  assert.equal(
+    evaluatePolicy(root, { tool_name: "Write", tool_input: { file_path: "/etc/passwd" } }).decision,
+    "block"
+  );
+  assert.equal(evaluatePolicy(root, { tool_name: "Bash", tool_input: { command: "npm test" } }).decision, "allow");
+});
+
+test("evidenceSummary formats profile results for PR descriptions", () => {
+  const root = tempProject();
+  initProject(root);
+  runProfile(root, { profile: "default" });
+
+  const summary = evidenceSummary(root);
+  assert.equal(summary.has_evidence, true);
+  assert.match(summary.markdown, /Profile:/);
+  assert.match(summary.markdown, /Status:/);
+});

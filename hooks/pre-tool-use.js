@@ -9,6 +9,7 @@ const { evaluatePreToolUse } = require("./pre-tool-policy");
   recordHook("PreToolUse", payload);
 
   const result = evaluatePreToolUse(payload);
+  recordHook("PolicyDecision", { ...payload, tool_response: result });
 
   if (result.allowed) {
     allow(result.reason);
