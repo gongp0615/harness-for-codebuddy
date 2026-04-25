@@ -76,6 +76,14 @@ ${CODEBUDDY_HOME:-$HOME/.codebuddy}/settings.json
 
 启用或更新插件后，重启 CodeBuddy Code CLI，让插件元数据重新加载。
 
+## 卸载
+
+```bash
+harness uninstall
+```
+
+这个命令会移除本地 CodeBuddy marketplace 配置，禁用 `harness-engineer@harness-engineer-local`，删除已安装的插件副本，并移除本地 `harness` launcher。它不会删除业务项目里的 `.harness-engineer/` 或 `harness/` 目录，因为这些目录包含任务证据和项目配置。
+
 ## 验证安装
 
 ```bash

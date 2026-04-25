@@ -6,7 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const { installCodeBuddyPlugin } = require("../scripts/installer");
+const { installCodeBuddyPlugin, uninstallCodeBuddyPlugin } = require("../scripts/installer");
 
 test("install copies plugin into a local CodeBuddy marketplace and enables it", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-home-"));
@@ -22,6 +22,22 @@ test("install copies plugin into a local CodeBuddy marketplace and enables it", 
   assert.equal(settings.extraKnownMarketplaces["harness-engineer-local"].source.source, "directory");
   assert.equal(settings.extraKnownMarketplaces["harness-engineer-local"].source.path, result.marketplace_dir);
   assert.equal(settings.enabledPlugins["harness-engineer@harness-engineer-local"], true);
+});
+
+test("uninstall removes marketplace settings, plugin files, and launcher", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebuddy-home-"));
+  const source = path.join(__dirname, "..");
+  const binDir = path.join(home, ".local", "bin");
+  const installed = installCodeBuddyPlugin({ sourceDir: source, homeDir: home, binDir });
+
+  const result = uninstallCodeBuddyPlugin({ homeDir: home, binDir });
+
+  assert.equal(result.ok, true);
+  assert.equal(fs.existsSync(installed.marketplace_dir), false);
+  assert.equal(fs.existsSync(path.join(binDir, "harness")), false);
+  const settings = JSON.parse(fs.readFileSync(path.join(home, "settings.json"), "utf8"));
+  assert.equal(settings.extraKnownMarketplaces["harness-engineer-local"], undefined);
+  assert.equal(settings.enabledPlugins["harness-engineer@harness-engineer-local"], undefined);
 });
 
 test("install script skips CI setup in non-interactive mode", () => {

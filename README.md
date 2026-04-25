@@ -75,6 +75,14 @@ ${CODEBUDDY_HOME:-$HOME/.codebuddy}/settings.json
 
 After enabling or changing plugins, restart CodeBuddy Code CLI so it reloads plugin metadata.
 
+### Uninstall
+
+```bash
+harness uninstall
+```
+
+This removes the local CodeBuddy marketplace entry, disables `harness-engineer@harness-engineer-local` in CodeBuddy settings, deletes the installed plugin copy, and removes the local `harness` launcher. It does not delete project-level `.harness-engineer/` or `harness/` directories because those contain task evidence and project configuration.
+
 ### Verify Installation
 
 ```bash
@@ -219,6 +227,14 @@ ${CODEBUDDY_HOME:-$HOME/.codebuddy}/settings.json
 ```
 
 启用或更新插件后，重启 CodeBuddy Code CLI，让插件元数据重新加载。
+
+### 卸载
+
+```bash
+harness uninstall
+```
+
+这个命令会移除本地 CodeBuddy marketplace 配置，禁用 `harness-engineer@harness-engineer-local`，删除已安装的插件副本，并移除本地 `harness` launcher。它不会删除业务项目里的 `.harness-engineer/` 或 `harness/` 目录，因为这些目录包含任务证据和项目配置。
 
 ### 验证安装
 

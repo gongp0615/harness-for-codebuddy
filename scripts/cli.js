@@ -3,7 +3,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { installCodeBuddyPlugin } = require("./installer");
+const { installCodeBuddyPlugin, uninstallCodeBuddyPlugin } = require("./installer");
 const { pluginRoot } = require("./paths");
 const { discoverVerificationCommands } = require("./harness-engine/verification-discovery");
 const { evidenceSummary, initProject, planTask, recover, status } = require("./harness-engine/state");
@@ -20,6 +20,11 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
     if (command === "install") {
       const result = installCodeBuddyPlugin(parseInstallArgs(argv.slice(1)));
       process.stdout.write(`harness-engineer installed for CodeBuddy\nPlugin: ${result.plugin_dir}\nMarketplace: ${result.marketplace_dir}\nSettings: ${result.settings_path}\n`);
+      return 0;
+    }
+    if (command === "uninstall") {
+      const result = uninstallCodeBuddyPlugin(parseInstallArgs(argv.slice(1)));
+      process.stdout.write(`harness-engineer uninstalled from CodeBuddy\nMarketplace removed: ${result.marketplace_dir}\nSettings: ${result.settings_path}\nProject state removed: ${result.removed_project_state}\n`);
       return 0;
     }
     if (command === "init") {
@@ -63,7 +68,7 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
       printJson({
         plugin_root: pluginRoot(),
         project_root: cwd,
-        commands: ["doctor", "install", "init", "plan", "status", "verify", "recover", "evidence", "policy-check"],
+        commands: ["doctor", "install", "uninstall", "init", "plan", "status", "verify", "recover", "evidence", "policy-check"],
         state_file: path.join(cwd, ".harness-engineer", "task.json")
       });
       return 0;

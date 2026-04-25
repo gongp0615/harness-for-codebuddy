@@ -27,6 +27,35 @@ function installCodeBuddyPlugin(options = {}) {
   };
 }
 
+function uninstallCodeBuddyPlugin(options = {}) {
+  const home = path.resolve(options.homeDir || homeDir());
+  const marketplaceDir = path.join(home, "marketplaces", PLUGIN_NAME);
+  const settingsPath = path.join(home, "settings.json");
+  const settings = readJson(settingsPath, {});
+
+  if (settings.extraKnownMarketplaces) {
+    delete settings.extraKnownMarketplaces[MARKETPLACE_NAME];
+  }
+  if (settings.enabledPlugins) {
+    delete settings.enabledPlugins[`${PLUGIN_NAME}@${MARKETPLACE_NAME}`];
+  }
+  writeJson(settingsPath, settings);
+
+  fs.rmSync(marketplaceDir, { recursive: true, force: true });
+  const binDir = path.resolve(options.binDir || process.env.HARNESS_BIN_DIR || path.join(process.env.HOME || home, ".local", "bin"));
+  const launcher = path.join(binDir, "harness");
+  fs.rmSync(launcher, { force: true });
+
+  return {
+    ok: true,
+    home_dir: home,
+    marketplace_dir: marketplaceDir,
+    settings_path: settingsPath,
+    launcher_path: launcher,
+    removed_project_state: false
+  };
+}
+
 function writeMarketplace(marketplaceDir) {
   writeJson(path.join(marketplaceDir, ".codebuddy-plugin", "marketplace.json"), {
     name: MARKETPLACE_NAME,
@@ -72,5 +101,6 @@ function pluginDirFromMarketplace(marketplaceDir) {
 }
 
 module.exports = {
-  installCodeBuddyPlugin
+  installCodeBuddyPlugin,
+  uninstallCodeBuddyPlugin
 };
