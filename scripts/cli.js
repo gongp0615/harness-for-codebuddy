@@ -25,7 +25,7 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
     if (command === "init") {
       printJson(initProject(cwd, {
         profile: parseOption(argv, "--profile") || "generic",
-        enableCi: hasFlag(argv, "--with-ci") || hasFlag(argv, "--ci")
+        ciProvider: parseCiProvider(argv)
       }));
       return 0;
     }
@@ -94,6 +94,13 @@ function parseOption(argv, name) {
 
 function hasFlag(argv, name) {
   return argv.includes(name);
+}
+
+function parseCiProvider(argv) {
+  if (hasFlag(argv, "--with-ci")) return "github";
+  const value = parseOption(argv, "--ci");
+  if (!value) return "none";
+  return value;
 }
 
 function positionalText(args) {

@@ -53,7 +53,13 @@ From a local checkout:
 bash install.sh
 ```
 
-During interactive installation, the script asks whether to enable a Harness GitHub Actions workflow in the current directory. Answering yes runs `harness init --profile node --with-ci` and creates `.github/workflows/harness.yml`. Non-interactive installs skip this step unless `HARNESS_INSTALL_ENABLE_CI=1` is set.
+During interactive installation, the script asks which CI setup to create for the current directory:
+
+- `none`: skip CI setup.
+- `github`: create `.github/workflows/harness.yml`.
+- `generic`: create `harness/ci/harness-ci.md` with the command to add to another CI system.
+
+Non-interactive installs skip CI setup unless `HARNESS_INSTALL_CI=github` or `HARNESS_INSTALL_CI=generic` is set.
 
 The installer writes a local CodeBuddy marketplace to:
 
@@ -192,7 +198,13 @@ curl -fsSL https://raw.githubusercontent.com/gongp0615/harness-for-codebuddy/ref
 bash install.sh
 ```
 
-交互式安装时，脚本会询问是否要在当前目录启用 Harness GitHub Actions CI。选择 yes 会运行 `harness init --profile node --with-ci` 并创建 `.github/workflows/harness.yml`。非交互安装默认跳过；如果要自动启用，可以设置 `HARNESS_INSTALL_ENABLE_CI=1`。
+交互式安装时，脚本会询问当前目录要使用哪种 CI 接入方式：
+
+- `none`：跳过 CI 设置。
+- `github`：创建 `.github/workflows/harness.yml`。
+- `generic`：创建 `harness/ci/harness-ci.md`，里面给出可接入其他 CI 系统的命令。
+
+非交互安装默认跳过 CI 设置；如果要自动启用，可以设置 `HARNESS_INSTALL_CI=github` 或 `HARNESS_INSTALL_CI=generic`。
 
 安装器会写入本地 CodeBuddy marketplace：
 
@@ -234,10 +246,11 @@ harness init --profile node
 harness init --profile generic
 ```
 
-如果要同时启用 GitHub Actions CI：
+如果要同时生成 CI 接入文件：
 
 ```bash
-harness init --profile node --with-ci
+harness init --profile node --ci github
+harness init --profile node --ci generic
 ```
 
 运行默认验证 profile：

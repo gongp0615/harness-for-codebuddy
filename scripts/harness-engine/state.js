@@ -108,7 +108,14 @@ function initProject(projectRoot, options = {}) {
     writeJson(paths.evidence, emptyEvidence(task.task_id));
   }
   writeIfMissing(paths.hooks, "");
-  return { ok: true, project_root: projectRoot, harness_dir: paths.root, task, ci_workflow_path: config.ci_workflow_path };
+  return {
+    ok: true,
+    project_root: projectRoot,
+    harness_dir: paths.root,
+    task,
+    ci_provider: config.ci_provider,
+    ci_workflow_path: config.ci_workflow_path
+  };
 }
 
 function emptyEvidence(taskId = null) {

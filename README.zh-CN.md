@@ -49,10 +49,17 @@ curl -fsSL https://raw.githubusercontent.com/gongp0615/harness-for-codebuddy/ref
 bash install.sh
 ```
 
-交互式安装时，脚本会询问是否要在当前目录启用 Harness GitHub Actions CI。选择 yes 会运行 `harness init --profile node --with-ci` 并创建 `.github/workflows/harness.yml`。非交互安装默认跳过；如果要自动启用，可以设置：
+交互式安装时，脚本会询问当前目录要使用哪种 CI 接入方式：
+
+- `none`：跳过 CI 设置。
+- `github`：创建 `.github/workflows/harness.yml`。
+- `generic`：创建 `harness/ci/harness-ci.md`，里面给出可接入其他 CI 系统的命令。
+
+非交互安装默认跳过 CI 设置；如果要自动启用，可以设置：
 
 ```bash
-HARNESS_INSTALL_ENABLE_CI=1 bash install.sh
+HARNESS_INSTALL_CI=github bash install.sh
+HARNESS_INSTALL_CI=generic bash install.sh
 ```
 
 安装器会写入本地 CodeBuddy marketplace：
@@ -101,10 +108,11 @@ harness init --profile node
 harness init --profile generic
 ```
 
-如果要同时启用 GitHub Actions CI：
+如果要同时生成 CI 接入文件：
 
 ```bash
-harness init --profile node --with-ci
+harness init --profile node --ci github
+harness init --profile node --ci generic
 ```
 
 输出可用于 PR 的验证摘要：

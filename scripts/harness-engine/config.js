@@ -77,13 +77,25 @@ function ensureHarnessConfig(projectRoot, options = {}) {
   writeIfMissing(path.join(projectRoot, "harness", "templates", "plan.md"), "# Plan\n\n## Task\n\n## Steps\n\n## Verification\n");
   writeIfMissing(path.join(projectRoot, "harness", "templates", "evidence.md"), "# Evidence\n\n## Verification\n\n## Risks\n");
   writeIfMissing(path.join(projectRoot, "harness", "templates", "risk.md"), "# Risks\n\n- None recorded.\n");
-  if (options.enableCi) {
-    return { ci_workflow_path: enableCiWorkflow(projectRoot) };
+  const ciProvider = normalizeCiProvider(options.ciProvider || (options.enableCi ? "github" : "none"));
+  if (ciProvider === "github") {
+    return { ci_provider: "github", ci_workflow_path: enableGitHubActionsWorkflow(projectRoot) };
   }
-  return { ci_workflow_path: null };
+  if (ciProvider === "generic") {
+    return { ci_provider: "generic", ci_workflow_path: enableGenericCiGuide(projectRoot) };
+  }
+  return { ci_provider: "none", ci_workflow_path: null };
 }
 
-function enableCiWorkflow(projectRoot) {
+function normalizeCiProvider(value) {
+  const provider = String(value || "none").toLowerCase();
+  if (["none", "skip", "false", "0"].includes(provider)) return "none";
+  if (["github", "github-actions", "actions"].includes(provider)) return "github";
+  if (["generic", "other", "manual"].includes(provider)) return "generic";
+  throw new Error(`Unsupported CI provider: ${value}`);
+}
+
+function enableGitHubActionsWorkflow(projectRoot) {
   const targetPath = path.join(projectRoot, ".github", "workflows", "harness.yml");
   const templatePath = path.join(pluginRoot(), "docs", "ai-engineering", "github-actions-harness.yml");
   const fallback = [
@@ -111,6 +123,24 @@ function enableCiWorkflow(projectRoot) {
   ].join("\n");
   const content = fs.existsSync(templatePath) ? fs.readFileSync(templatePath, "utf8") : `${fallback}\n`;
   writeIfMissing(targetPath, content);
+  return targetPath;
+}
+
+function enableGenericCiGuide(projectRoot) {
+  const targetPath = path.join(projectRoot, "harness", "ci", "harness-ci.md");
+  writeIfMissing(targetPath, [
+    "# Harness CI Integration",
+    "",
+    "Add this command to your CI pipeline after dependencies are installed:",
+    "",
+    "```bash",
+    "harness verify --profile ci",
+    "```",
+    "",
+    "Upload `.harness-engineer/` as a CI artifact so reviewers can inspect verification evidence.",
+    "",
+    "If the CI environment does not have `harness` on PATH, run the package script or the local CLI path used by your project."
+  ].join("\n"));
   return targetPath;
 }
 
@@ -158,6 +188,8 @@ module.exports = {
   DEFAULT_APPROVAL_POLICY,
   DEFAULT_FILE_SCOPE,
   DEFAULT_SHELL_POLICY,
-  enableCiWorkflow,
+  enableCiWorkflow: enableGitHubActionsWorkflow,
+  enableGenericCiGuide,
+  enableGitHubActionsWorkflow,
   ensureHarnessConfig
 };

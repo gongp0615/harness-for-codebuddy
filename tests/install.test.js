@@ -41,5 +41,47 @@ test("install script skips CI setup in non-interactive mode", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(fs.existsSync(path.join(project, ".github", "workflows", "harness.yml")), false);
-  assert.match(result.stdout, /Skipped GitHub Actions CI workflow setup/);
+  assert.match(result.stdout, /Skipped CI setup/);
+});
+
+test("install script can create generic CI setup from environment choice", () => {
+  const source = path.join(__dirname, "..");
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), "harness-install-generic-ci-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "harness-install-home-"));
+  const result = require("node:child_process").spawnSync("bash", [path.join(source, "install.sh")], {
+    cwd: project,
+    env: {
+      ...process.env,
+      CODEBUDDY_HOME: home,
+      HARNESS_BIN_DIR: path.join(home, ".local", "bin"),
+      HARNESS_INSTALL_CI: "generic"
+    },
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(project, "harness", "ci", "harness-ci.md")), true);
+  assert.equal(fs.existsSync(path.join(project, ".github", "workflows", "harness.yml")), false);
+  assert.match(result.stdout, /Created harness\/ci\/harness-ci\.md/);
+});
+
+test("legacy HARNESS_INSTALL_ENABLE_CI=1 still maps to GitHub Actions", () => {
+  const source = path.join(__dirname, "..");
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), "harness-install-legacy-ci-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "harness-install-home-"));
+  const result = require("node:child_process").spawnSync("bash", [path.join(source, "install.sh")], {
+    cwd: project,
+    env: {
+      ...process.env,
+      CODEBUDDY_HOME: home,
+      HARNESS_BIN_DIR: path.join(home, ".local", "bin"),
+      HARNESS_INSTALL_ENABLE_CI: "1"
+    },
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(project, ".github", "workflows", "harness.yml")), true);
 });

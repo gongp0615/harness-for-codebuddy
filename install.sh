@@ -37,19 +37,39 @@ else
   echo "Add \$HOME/.local/bin to PATH to use the 'harness' command directly."
 fi
 
-enable_ci="${HARNESS_INSTALL_ENABLE_CI:-}"
-if [ -z "$enable_ci" ] && [ -t 0 ]; then
-  printf "Enable Harness GitHub Actions CI workflow in the current directory? [y/N] "
+ci_provider="${HARNESS_INSTALL_CI:-}"
+if [ -z "$ci_provider" ] && [ "${HARNESS_INSTALL_ENABLE_CI:-}" = "1" ]; then
+  ci_provider="github"
+fi
+if [ -z "$ci_provider" ] && [ -t 0 ]; then
+  echo "Select Harness CI setup for the current directory:"
+  echo "  1) none - skip CI setup"
+  echo "  2) github - create .github/workflows/harness.yml"
+  echo "  3) generic - create harness/ci/harness-ci.md integration guide"
+  printf "Choose [1/2/3, default 1]: "
   read -r answer || answer=""
   case "$answer" in
-    y|Y|yes|YES) enable_ci="1" ;;
-    *) enable_ci="0" ;;
+    2|github|GitHub|github-actions) ci_provider="github" ;;
+    3|generic|other|manual) ci_provider="generic" ;;
+    *) ci_provider="none" ;;
   esac
 fi
 
-if [ "$enable_ci" = "1" ]; then
-  node "$source_dir/scripts/cli.js" init --profile "${HARNESS_INIT_PROFILE:-node}" --with-ci
-  echo "Created .github/workflows/harness.yml in the current directory."
-else
-  echo "Skipped GitHub Actions CI workflow setup. Run 'harness init --profile node --with-ci' later to enable it."
-fi
+case "$ci_provider" in
+  1|none|skip|false|0|"")
+    echo "Skipped CI setup. Run 'harness init --profile node --ci github' or '--ci generic' later to enable it."
+    ;;
+  2|github|GitHub|github-actions)
+    node "$source_dir/scripts/cli.js" init --profile "${HARNESS_INIT_PROFILE:-node}" --ci github
+    echo "Created .github/workflows/harness.yml in the current directory."
+    ;;
+  3|generic|other|manual)
+    node "$source_dir/scripts/cli.js" init --profile "${HARNESS_INIT_PROFILE:-node}" --ci generic
+    echo "Created harness/ci/harness-ci.md in the current directory."
+    ;;
+  *)
+    echo "Unsupported HARNESS_INSTALL_CI value: $ci_provider" >&2
+    echo "Use one of: none, github, generic." >&2
+    exit 1
+    ;;
+esac
