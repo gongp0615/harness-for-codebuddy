@@ -6,7 +6,7 @@
     {
       "name": "harness-engineer",
       "version": "0.1.0-alpha.0",
-      "description": "CodeBuddy Code CLI supervised engineering harness.",
+      "description": "CodeBuddy Code CLI supervised and autonomous engineering harness.",
       "source": "."
     }
   ]

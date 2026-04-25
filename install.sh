@@ -28,6 +28,72 @@ else
   source_dir="$tmp/harness-for-codebuddy"
 fi
 
+default_agent_model="${HARNESS_AGENT_MODEL:-claude-sonnet-4.6}"
+known_agent_models=(
+  claude-sonnet-4.6 claude-sonnet-4.6-1m claude-4.5 claude-opus-4.6 claude-opus-4.6-1m claude-opus-4.5 claude-haiku-4.5
+  gemini-3.1-pro gemini-3.0-flash gemini-2.5-pro gemini-3.1-flash-lite
+  gpt-5.4 gpt-5.2 gpt-5.3-codex gpt-5.2-codex gpt-5.1 gpt-5.1-codex gpt-5.1-codex-max gpt-5.1-codex-mini
+  kimi-k2.5 kimi-k2-thinking glm-5.1 glm-5.0 glm-5.0-turbo glm-5v-turbo glm-4.7 glm-4.6 glm-4.6v minimax-m2.5 deepseek-v3.2-volc hunyuan-2.0-thinking-ioa hunyuan-2.0-instruct-ioa
+)
+
+choose_agent_model() {
+  local agent="$1"
+  local fallback="$2"
+  local answer
+  echo "Select model for Harness $agent agent:" >&2
+  local i=1
+  for model in "${known_agent_models[@]}"; do
+    printf "  %d) %s\n" "$i" "$model" >&2
+    i=$((i + 1))
+  done
+  printf "Choose number or enter a custom model id [default %s]: " "$fallback" >&2
+  read -r answer || answer=""
+  if [ -z "$answer" ]; then
+    printf "%s" "$fallback"
+    return
+  fi
+  if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -ge 1 ] && [ "$answer" -le "${#known_agent_models[@]}" ]; then
+    printf "%s" "${known_agent_models[$((answer - 1))]}"
+    return
+  fi
+  printf "%s" "$answer"
+}
+
+has_agent_model_env=0
+for var_name in HARNESS_AGENT_MODEL HARNESS_AGENT_MODEL_MODE HARNESS_AGENT_MODEL_PLANNER HARNESS_AGENT_MODEL_EXECUTOR HARNESS_AGENT_MODEL_VERIFIER HARNESS_AGENT_MODEL_DEBUGGER; do
+  if [ -n "${!var_name:-}" ]; then
+    has_agent_model_env=1
+  fi
+done
+
+if [ "$has_agent_model_env" = "0" ] && [ -t 0 ]; then
+  echo "Configure Harness plugin agent models:"
+  echo "  1) yes - use ${default_agent_model} for all Harness agents"
+  echo "  2) customize each agent"
+  echo "  3) skip model configuration"
+  printf "Choose [1/2/3, default 1]: "
+  read -r model_answer || model_answer=""
+  case "$model_answer" in
+    2|custom|customize|customize-each|customize\ each\ agent)
+      export HARNESS_AGENT_MODEL_MODE="custom"
+      export HARNESS_AGENT_MODEL_PLANNER="$(choose_agent_model planner "$default_agent_model")"
+      echo
+      export HARNESS_AGENT_MODEL_EXECUTOR="$(choose_agent_model executor "$default_agent_model")"
+      echo
+      export HARNESS_AGENT_MODEL_VERIFIER="$(choose_agent_model verifier "$default_agent_model")"
+      echo
+      export HARNESS_AGENT_MODEL_DEBUGGER="$(choose_agent_model debugger "$default_agent_model")"
+      echo
+      ;;
+    3|skip|none|inherit)
+      export HARNESS_AGENT_MODEL_MODE="skip"
+      ;;
+    *)
+      export HARNESS_AGENT_MODEL="$default_agent_model"
+      ;;
+  esac
+fi
+
 node "$source_dir/scripts/cli.js" install --source "$source_dir" --home "$CODEBUDDY_HOME"
 
 if command -v harness >/dev/null 2>&1; then

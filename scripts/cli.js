@@ -7,6 +7,7 @@ const { installCodeBuddyPlugin, uninstallCodeBuddyPlugin } = require("./installe
 const { pluginRoot } = require("./paths");
 const { discoverVerificationCommands } = require("./harness-engine/verification-discovery");
 const { evidenceSummary, initProject, planTask, recover, status } = require("./harness-engine/state");
+const { runAutonomous } = require("./harness-engine/orchestrator");
 const { evaluatePolicy } = require("./harness-engine/policy");
 const { legacyVerify, runProfile } = require("./harness-engine/profile-runner");
 
@@ -41,6 +42,15 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
       }));
       return 0;
     }
+    if (command === "run") {
+      const result = runAutonomous(cwd, {
+        task: parseOption(argv, "--task") || positionalText(argv.slice(1)),
+        profile: parseOption(argv, "--profile") || "default",
+        maxRounds: parseOption(argv, "--max-rounds") || "5"
+      });
+      printJson(result);
+      return result.ok ? 0 : 1;
+    }
     if (command === "status") {
       printJson(status(cwd));
       return 0;
@@ -68,7 +78,7 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
       printJson({
         plugin_root: pluginRoot(),
         project_root: cwd,
-        commands: ["doctor", "install", "uninstall", "init", "plan", "status", "verify", "recover", "evidence", "policy-check"],
+        commands: ["doctor", "install", "uninstall", "init", "plan", "run", "status", "verify", "recover", "evidence", "policy-check"],
         state_file: path.join(cwd, ".harness-engineer", "task.json")
       });
       return 0;
@@ -128,6 +138,19 @@ function parseInstallArgs(args) {
       if (!args[index + 1]) throw new Error("--bin-dir requires a path");
       options.binDir = path.resolve(args[index + 1]);
       index += 1;
+    } else if (arg === "--agent-model") {
+      if (!args[index + 1]) throw new Error("--agent-model requires a value");
+      options.agentModel = args[index + 1];
+      index += 1;
+    } else if (arg === "--agent-model-mode") {
+      if (!args[index + 1]) throw new Error("--agent-model-mode requires a value");
+      options.agentModelMode = args[index + 1];
+      index += 1;
+    } else if (arg.startsWith("--agent-model-")) {
+      if (!args[index + 1]) throw new Error(`${arg} requires a value`);
+      const agent = arg.slice("--agent-model-".length).replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+      options[`${agent}AgentModel`] = args[index + 1];
+      index += 1;
     }
   }
   return options;
@@ -142,10 +165,12 @@ function doctor(root) {
     check(root, "scripts/cli.js", "CLI entrypoint"),
     check(root, "scripts/harness-engine/state.js", "Harness state engine"),
     check(root, "scripts/harness-engine/profile-runner.js", "Harness profile runner"),
+    check(root, "scripts/harness-engine/orchestrator.js", "Harness autonomous orchestrator"),
     check(root, "scripts/harness-engine/policy.js", "Harness policy engine"),
     check(root, "commands/doctor.md", "doctor slash command"),
     check(root, "commands/init.md", "init slash command"),
     check(root, "commands/evidence.md", "evidence slash command"),
+    check(root, "commands/run.md", "run slash command"),
     check(root, "skills/harness-plan/SKILL.md", "harness-plan skill"),
     check(root, "agents/planner.md", "planner agent"),
     check(root, "docs/ai-engineering/workflow.md", "team workflow documentation")

@@ -6,6 +6,48 @@ const { copyDirectory, homeDir, readJson, writeJson } = require("./paths");
 
 const PLUGIN_NAME = "harness-engineer";
 const MARKETPLACE_NAME = "harness-engineer-local";
+const DEFAULT_AGENT_MODEL = "claude-sonnet-4.6";
+const AGENT_NAMES = ["planner", "executor", "verifier", "debugger"];
+const AGENT_DESCRIPTIONS = {
+  planner: "Turns a clear engineering request into a small, testable Harness plan.",
+  executor: "Implements approved Harness plans within assigned scope.",
+  verifier: "Validates completion claims against Harness plans and evidence.",
+  debugger: "Diagnoses failing behavior from Harness evidence and logs."
+};
+const KNOWN_AGENT_MODELS = [
+  "claude-sonnet-4.6",
+  "claude-sonnet-4.6-1m",
+  "claude-4.5",
+  "claude-opus-4.6",
+  "claude-opus-4.6-1m",
+  "claude-opus-4.5",
+  "claude-haiku-4.5",
+  "gemini-3.1-pro",
+  "gemini-3.0-flash",
+  "gemini-2.5-pro",
+  "gemini-3.1-flash-lite",
+  "gpt-5.4",
+  "gpt-5.2",
+  "gpt-5.3-codex",
+  "gpt-5.2-codex",
+  "gpt-5.1",
+  "gpt-5.1-codex",
+  "gpt-5.1-codex-max",
+  "gpt-5.1-codex-mini",
+  "kimi-k2.5",
+  "kimi-k2-thinking",
+  "glm-5.1",
+  "glm-5.0",
+  "glm-5.0-turbo",
+  "glm-5v-turbo",
+  "glm-4.7",
+  "glm-4.6",
+  "glm-4.6v",
+  "minimax-m2.5",
+  "deepseek-v3.2-volc",
+  "hunyuan-2.0-thinking-ioa",
+  "hunyuan-2.0-instruct-ioa"
+];
 
 function installCodeBuddyPlugin(options = {}) {
   const sourceDir = path.resolve(options.sourceDir || process.cwd());
@@ -14,6 +56,7 @@ function installCodeBuddyPlugin(options = {}) {
   const pluginDir = path.join(marketplaceDir, "plugins", PLUGIN_NAME);
 
   copyDirectory(sourceDir, pluginDir);
+  configureInstalledAgentModels(pluginDir, options);
   writeMarketplace(marketplaceDir);
   writeSettings(home, marketplaceDir, options.binDir);
 
@@ -23,7 +66,8 @@ function installCodeBuddyPlugin(options = {}) {
     marketplace_dir: marketplaceDir,
     settings_path: path.join(home, "settings.json"),
     marketplace_name: MARKETPLACE_NAME,
-    plugin_name: PLUGIN_NAME
+    plugin_name: PLUGIN_NAME,
+    agent_models: resolveAgentModelConfig(options)
   };
 }
 
@@ -100,7 +144,125 @@ function pluginDirFromMarketplace(marketplaceDir) {
   return path.join(marketplaceDir, "plugins", PLUGIN_NAME);
 }
 
+function configureInstalledAgentModels(pluginDir, options = {}) {
+  const config = resolveAgentModelConfig(options);
+  const agentsDir = path.join(pluginDir, "agents");
+
+  for (const agent of AGENT_NAMES) {
+    const filePath = path.join(agentsDir, `${agent}.md`);
+    if (!fs.existsSync(filePath)) continue;
+    const text = fs.readFileSync(filePath, "utf8");
+    const parsed = parseMarkdownFrontmatter(text);
+    const data = {
+      ...parsed.data,
+      name: agent,
+      description: AGENT_DESCRIPTIONS[agent] || parsed.data.description || agent
+    };
+    if (config.mode === "skip") {
+      delete data.model;
+    } else {
+      data.model = config.agents[agent] || DEFAULT_AGENT_MODEL;
+    }
+    fs.writeFileSync(filePath, renderMarkdownFrontmatter(data, parsed.body));
+  }
+}
+
+function resolveAgentModelConfig(options = {}) {
+  const env = options.env || process.env;
+  const mode = normalizeModelMode(options.agentModelMode || env.HARNESS_AGENT_MODEL_MODE);
+  const baseModel = normalizeModelId(options.agentModel || env.HARNESS_AGENT_MODEL || DEFAULT_AGENT_MODEL);
+  const agents = {};
+
+  for (const agent of AGENT_NAMES) {
+    const optionKey = `${agent}AgentModel`;
+    const envKey = `HARNESS_AGENT_MODEL_${agent.toUpperCase()}`;
+    agents[agent] = normalizeModelId(options[optionKey] || env[envKey] || baseModel);
+  }
+
+  return { mode, default_model: baseModel, agents };
+}
+
+function normalizeModelMode(value) {
+  if (!value) return "default";
+  const normalized = String(value).trim().toLowerCase();
+  if (["skip", "none", "false", "0", "inherit"].includes(normalized)) return "skip";
+  if (["custom", "customize", "per-agent", "per_agent"].includes(normalized)) return "custom";
+  return "default";
+}
+
+function normalizeModelId(value) {
+  const normalized = String(value || "").trim();
+  return normalized || DEFAULT_AGENT_MODEL;
+}
+
+function parseMarkdownFrontmatter(text) {
+  if (!text.startsWith("---\n") && !text.startsWith("---\r\n")) {
+    return { data: {}, body: text.replace(/^\s*/, "") };
+  }
+  const newline = text.startsWith("---\r\n") ? "\r\n" : "\n";
+  const markerLength = 3 + newline.length;
+  const endMarker = `${newline}---${newline}`;
+  const end = text.indexOf(endMarker, markerLength);
+  if (end === -1) {
+    return { data: {}, body: text };
+  }
+  const frontmatter = text.slice(markerLength, end);
+  const body = text.slice(end + endMarker.length);
+  return { data: parseFrontmatterYaml(frontmatter), body };
+}
+
+function parseFrontmatterYaml(text) {
+  const data = {};
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const index = line.indexOf(":");
+    if (index === -1) continue;
+    const key = line.slice(0, index).trim();
+    data[key] = unquoteYamlScalar(line.slice(index + 1).trim());
+  }
+  return data;
+}
+
+function unquoteYamlScalar(value) {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value.slice(1, -1);
+    }
+  }
+  return value;
+}
+
+function renderMarkdownFrontmatter(data, body) {
+  const orderedKeys = ["name", "description", "model"];
+  const seen = new Set();
+  const lines = [];
+  for (const key of orderedKeys) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      lines.push(`${key}: ${quoteYamlScalar(data[key])}`);
+      seen.add(key);
+    }
+  }
+  for (const key of Object.keys(data)) {
+    if (!seen.has(key)) lines.push(`${key}: ${quoteYamlScalar(data[key])}`);
+  }
+  return `---\n${lines.join("\n")}\n---\n\n${body.replace(/^\s*/, "")}`;
+}
+
+function quoteYamlScalar(value) {
+  const text = String(value);
+  if (/^[A-Za-z0-9_.-]+$/.test(text)) return text;
+  return JSON.stringify(text);
+}
+
 module.exports = {
+  AGENT_NAMES,
+  DEFAULT_AGENT_MODEL,
+  KNOWN_AGENT_MODELS,
+  configureInstalledAgentModels,
   installCodeBuddyPlugin,
+  resolveAgentModelConfig,
   uninstallCodeBuddyPlugin
 };

@@ -103,6 +103,46 @@ Run discovered project verification commands:
 harness verify
 ```
 
+### Autonomous Runs
+
+For long-running engineering tasks, use the explicit autonomous entrypoint:
+
+```bash
+harness run --task "add retry tests for failed checkout submissions"
+```
+
+`harness run` drives CodeBuddy headless through a bounded loop:
+
+```text
+planner -> executor -> verifier -> fix
+```
+
+The default profile is `default` and the default limit is 5 rounds:
+
+```bash
+harness run --task "stabilize checkout retry handling" --profile ci --max-rounds 3
+```
+
+The harness invokes CodeBuddy with full headless permissions:
+
+```text
+codebuddy -p ... -y --permission-mode bypassPermissions --subagent-permission-mode bypassPermissions --agent <planner|executor|verifier>
+```
+
+Use this only in a repository where that permission level is acceptable. The hard stops are: required verification passes, `--max-rounds` is reached, CodeBuddy is unavailable or fails, or the verifier marks the task unsafe to continue.
+
+Autonomous artifacts are written under `.harness-engineer/`:
+
+```text
+spec.md          planner-generated task spec, non-goals, acceptance criteria
+contract.md      round contract and evaluator fix instructions
+run.json         run id, rounds, agent outputs, and stop reason
+evaluation.json  verifier judgment against evidence and contract
+evidence.json    verification profile evidence
+```
+
+`harness status` includes the current autonomous round, last evaluator result, and stop reason. `harness recover` points to the next action after interruption or `MAX_ROUNDS_REACHED`.
+
 ### Plugin Contents
 
 ```text
@@ -138,10 +178,12 @@ Hook events are recorded under the current project:
 
 ### Current Scope
 
-This is an alpha plugin focused on supervised engineering sessions:
+This is an alpha plugin focused on supervised engineering sessions and explicit bounded autonomous runs:
 
 - Works best for bug fixes, small features, test additions, and review feedback.
 - Verification profiles can be configured per project; legacy verification still discovers Node scripts from `package.json` when no profile is requested.
+- Autonomous mode is started only by `harness run`; hooks do not start it automatically.
+- UI/browser QA should be configured as verification profile steps, for example via Playwright in the target project.
 - It does not replace CodeBuddy's built-in reasoning; it gives CodeBuddy stronger workflow structure and evidence gates.
 - Live CodeBuddy UI behavior depends on CodeBuddy's plugin loader and hook implementation.
 
@@ -275,6 +317,30 @@ harness init --profile node --ci generic
 harness verify --profile default
 ```
 
+### 自治运行
+
+对于较长的工程任务，可以显式启动自治入口：
+
+```bash
+harness run --task "给 checkout 失败重试补测试"
+```
+
+`harness run` 会用 CodeBuddy headless 跑有上限的 `planner -> executor -> verifier -> fix` 循环。默认 profile 是 `default`，默认最多 5 轮：
+
+```bash
+harness run --task "稳定 checkout retry 处理" --profile ci --max-rounds 3
+```
+
+运行时会使用完整 headless 权限：
+
+```text
+codebuddy -p ... -y --permission-mode bypassPermissions --subagent-permission-mode bypassPermissions --agent <planner|executor|verifier>
+```
+
+只在你接受这个权限级别的仓库中使用。硬停止条件包括 required verification 通过、达到 `--max-rounds`、CodeBuddy 不存在或调用失败、verifier 判断继续推进不安全。
+
+自治产物会写入 `.harness-engineer/spec.md`、`contract.md`、`run.json`、`evaluation.json` 和 `evidence.json`。`harness status` 会显示当前轮次、最后 evaluator 结论和停止原因；`harness recover` 会在中断或 `MAX_ROUNDS_REACHED` 后提示下一步。
+
 输出可用于 PR 的验证摘要：
 
 ```bash
@@ -319,11 +385,13 @@ Hook 事件会记录到当前项目：
 
 ### 当前范围
 
-这是一个 alpha 阶段插件，重点是受监督工程会话：
+这是一个 alpha 阶段插件，重点是受监督工程会话和显式、有轮次上限的自治运行：
 
 - 适合 bugfix、小功能、测试补齐和 review feedback 修复。
 - 验证 profiles 可以按项目配置；未指定 profile 时仍兼容 Node 项目的 `package.json` scripts 自动发现。
 - YAML 是项目级配置，不需要每次业务开发都编写。通常由团队在接入项目或新增长期业务域时维护，日常开发只选择已有 profile。
+- 自治模式只会通过 `harness run` 启动；hooks 不会自动启动自治执行。
+- UI/browser QA 应作为目标项目自己的 verification profile step 配置，例如使用 Playwright 或等价命令。
 - 它不替代 CodeBuddy 自身推理能力，而是给 CodeBuddy 增加更强的工作流结构和证据门禁。
 - 实际 UI 加载效果取决于 CodeBuddy 的插件加载器和 Hook 实现。
 

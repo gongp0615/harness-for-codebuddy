@@ -17,7 +17,13 @@ const VALID_STATUSES = new Set([
   "BLOCKED_BY_POLICY",
   "FAILED_VERIFICATION",
   "INTERRUPTED",
-  "RECOVERING"
+  "RECOVERING",
+  "SPEC_READY",
+  "BUILDING",
+  "EVALUATING",
+  "FIXING",
+  "AUTONOMOUS_DONE",
+  "MAX_ROUNDS_REACHED"
 ]);
 
 function harnessDir(projectRoot) {
@@ -34,7 +40,11 @@ function statePaths(projectRoot) {
     evidence: path.join(root, "evidence.json"),
     risks: path.join(root, "risks.md"),
     hooks: path.join(root, "hook-events.jsonl"),
-    verifyCache: path.join(root, "verify-cache")
+    verifyCache: path.join(root, "verify-cache"),
+    spec: path.join(root, "spec.md"),
+    contract: path.join(root, "contract.md"),
+    run: path.join(root, "run.json"),
+    evaluation: path.join(root, "evaluation.json")
   };
 }
 
@@ -179,6 +189,8 @@ function status(projectRoot) {
   const paths = statePaths(projectRoot);
   const task = fs.existsSync(paths.task) ? readTask(projectRoot) : null;
   const evidence = readJson(paths.evidence, null);
+  const run = readJson(paths.run, null);
+  const evaluation = readJson(paths.evaluation, null);
   const risks = fs.existsSync(paths.risks) ? fs.readFileSync(paths.risks, "utf8") : null;
   const legacy = readJson(paths.legacyState, {
     active_task_id: task ? task.task_id : null,
@@ -191,10 +203,19 @@ function status(projectRoot) {
     harness_dir: paths.root,
     state: legacy,
     task,
+    run,
+    evaluation,
     evidence,
     risks,
-    summary: task ? `${task.task_id}: ${task.status} - ${task.title}` : "No Harness task initialized."
+    summary: task ? statusSummary(task, run, evaluation) : "No Harness task initialized."
   };
+}
+
+function statusSummary(task, run, evaluation) {
+  const runPart = run ? ` round ${run.current_round || run.round || 0}/${run.max_rounds || "?"}` : "";
+  const verdict = evaluation ? ` last evaluator: ${evaluation.pass ? "pass" : "fail"}` : "";
+  const reason = run && run.exit_reason ? ` stop: ${run.exit_reason}` : "";
+  return `${task.task_id}: ${task.status}${runPart}${verdict}${reason} - ${task.title}`;
 }
 
 function transitionTask(projectRoot, status, note, updates = {}) {
@@ -227,6 +248,12 @@ function recover(projectRoot) {
     status: current.task.status,
     current_step: current.task.current_step,
     next_step: next,
+    run: current.run ? {
+      run_id: current.run.run_id,
+      current_round: current.run.current_round,
+      max_rounds: current.run.max_rounds,
+      exit_reason: current.run.exit_reason
+    } : null,
     evidence_status: current.evidence ? current.evidence.status : "NO_EVIDENCE"
   };
 }
@@ -236,6 +263,12 @@ function nextStep(task, evidence) {
   if (task.status === "PLANNED" || task.status === "EXECUTING") return "Execute the plan, then run `harness verify --profile default`.";
   if (task.status === "FAILED_VERIFICATION") return "Inspect failed evidence, fix the cause, and rerun `harness verify`.";
   if (task.status === "VERIFIED") return "Prepare review notes with `harness evidence --summary`.";
+  if (task.status === "SPEC_READY") return "Run `harness run --task \"...\"` to start or resume the autonomous builder/evaluator loop.";
+  if (task.status === "BUILDING") return "Resume the autonomous run with `harness recover`, then continue the current executor round.";
+  if (task.status === "EVALUATING") return "Resume the autonomous run with `harness recover`, then complete evaluator judgment.";
+  if (task.status === "FIXING") return "Run the next autonomous executor round using the latest `.harness-engineer/evaluation.json`.";
+  if (task.status === "MAX_ROUNDS_REACHED") return "Inspect `.harness-engineer/evaluation.json`, then rerun `harness run --task \"...\" --max-rounds <n>` if safe.";
+  if (task.status === "AUTONOMOUS_DONE") return "Autonomous run completed; review `.harness-engineer/evidence.json` and final changes.";
   if (!evidence || evidence.status === "NO_EVIDENCE") return "Run `harness verify --profile default` to collect evidence.";
   return "Inspect `harness status` and continue from the current step.";
 }

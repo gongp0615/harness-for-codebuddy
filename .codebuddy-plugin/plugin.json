@@ -1,7 +1,7 @@
 {
   "name": "harness-engineer",
   "version": "0.1.0-alpha.0",
-  "description": "CodeBuddy Code CLI plugin for planning, verification, recovery, and safe engineering workflows.",
+  "description": "CodeBuddy Code CLI plugin for planning, autonomous runs, verification, recovery, and safe engineering workflows.",
   "author": {
     "name": "Harness Engineer Maintainers",
     "email": "noreply@example.com",
@@ -18,8 +18,8 @@
   "bin": "./bin/",
   "interface": {
     "displayName": "Harness Engineer",
-    "shortDescription": "Planning, verification, recovery, and safety workflow plugin for CodeBuddy Code CLI.",
-    "longDescription": "Provides CodeBuddy-specific slash commands, skills, agents, hooks, safety checks, verification evidence, and recovery flow for software engineering tasks.",
+    "shortDescription": "Planning, autonomous runs, verification, recovery, and safety workflow plugin for CodeBuddy Code CLI.",
+    "longDescription": "Provides CodeBuddy-specific slash commands, skills, agents, hooks, safety checks, bounded autonomous execution, verification evidence, and recovery flow for software engineering tasks.",
     "developerName": "Harness Engineer Maintainers",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write", "Automation"],
@@ -28,6 +28,7 @@
     "termsOfServiceURL": "https://github.com/gongp0615/harness-for-codebuddy",
     "defaultPrompt": [
       "/harness-engineer:plan add tests for the flaky retry path",
+      "/harness-engineer:run add tests for the flaky retry path",
       "/harness-engineer:verify",
       "/harness-engineer:status"
     ],

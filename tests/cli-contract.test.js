@@ -8,6 +8,8 @@ const test = require("node:test");
 
 const { runCli } = require("../scripts/cli");
 
+const HARNESS_AGENT_NAMES = ["planner", "executor", "verifier", "debugger"];
+
 function tempProject() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "harness-cli-"));
 }
@@ -82,4 +84,19 @@ test("init --ci generic creates a generic CI guide instead of a GitHub workflow"
   assert.equal(JSON.parse(result.stdout).ci_workflow_path.endsWith("harness/ci/harness-ci.md"), true);
   assert.equal(fs.existsSync(path.join(root, "harness", "ci", "harness-ci.md")), true);
   assert.equal(fs.existsSync(path.join(root, ".github", "workflows", "harness.yml")), false);
+});
+
+test("Harness plugin agents declare valid CodeBuddy frontmatter", () => {
+  const root = path.join(__dirname, "..");
+  for (const agent of HARNESS_AGENT_NAMES) {
+    const text = fs.readFileSync(path.join(root, "agents", `${agent}.md`), "utf8");
+    assert.match(text, /^---\n/);
+    const end = text.indexOf("\n---\n", 4);
+    assert.notEqual(end, -1);
+    const frontmatter = text.slice(4, end);
+    assert.match(frontmatter, new RegExp(`(^|\\n)name: ${agent}(\\n|$)`));
+    assert.match(frontmatter, /(^|\n)description: .+(\n|$)/);
+    assert.match(frontmatter, /(^|\n)model: claude-sonnet-4\.6(\n|$)/);
+    assert.match(text.slice(end + "\n---\n".length).trimStart(), /^# /);
+  }
 });
