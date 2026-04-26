@@ -15,6 +15,6 @@ harness init --profile node --ci github
 harness init --profile node --ci generic
 ```
 
-The GitHub provider copies `docs/ai-engineering/github-actions-harness.yml` into `.github/workflows/harness.yml`. Pushing that workflow file to GitHub requires an account or token with `workflow` permission.
+The GitHub provider copies `docs/ai-engineering/github-actions-harness.yml` into `.github/workflows/harness.yml`. That workflow now prints `docker --version` and `docker compose version` before running `harness verify --profile ci`, so missing container tooling fails fast. Pushing that workflow file to GitHub requires an account or token with `workflow` permission.
 
 The integration layer assumes the CI runner has Docker and Docker Compose available. Integration logs are written under `.harness-engineer/integration-logs/` so they can be uploaded with the rest of the Harness evidence.
