@@ -1,2 +1,5 @@
 name: default
-steps: []
+steps:
+  - name: smoke
+    command: node --version
+    required: true

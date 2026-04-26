@@ -37,11 +37,11 @@ function parseSimpleYaml(text) {
 
     if (indent === 2 && line.startsWith("- ")) {
       const body = line.slice(2);
-      if (!body.includes(":")) {
+      const [key, value, hasPair] = splitPair(body);
+      if (!hasPair) {
         currentItem = parseValue(body);
         root[currentKey].push(currentItem);
       } else {
-        const [key, value] = splitPair(body);
         currentItem = {};
         currentItem[key] = parseValue(value);
         root[currentKey].push(currentItem);
@@ -59,9 +59,32 @@ function parseSimpleYaml(text) {
 }
 
 function splitPair(line) {
-  const index = line.indexOf(":");
-  if (index === -1) return [line, ""];
-  return [line.slice(0, index).trim(), line.slice(index + 1).trim()];
+  const index = findMappingColon(line);
+  if (index === -1) return [line, "", false];
+  return [line.slice(0, index).trim(), line.slice(index + 1).trim(), true];
+}
+
+function findMappingColon(line) {
+  let quote = null;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (quote) {
+      if (char === "\\" && quote === '"') {
+        index += 1;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === ":" && (index === line.length - 1 || /\s/.test(line[index + 1]))) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function parseValue(value) {

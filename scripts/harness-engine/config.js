@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { pluginRoot } = require("../paths");
+const { discoverVerificationCommands } = require("./verification-discovery");
 
 const DEFAULT_SHELL_POLICY = {
   block: [
@@ -33,7 +34,7 @@ const DEFAULT_FILE_SCOPE = {
   blocked_roots: ["/etc", "/bin", "/sbin", "/usr", "/var", "/System", "C:\\Windows"]
 };
 
-function defaultProfile(profile = "generic") {
+function defaultProfile(profile = "generic", projectRoot = process.cwd()) {
   if (profile === "node") {
     return [
       "name: default",
@@ -41,6 +42,18 @@ function defaultProfile(profile = "generic") {
       "  - name: test",
       "    command: npm test",
       "    required: true"
+    ].join("\n");
+  }
+  const discovered = discoverVerificationCommands(projectRoot);
+  if (discovered.length > 0) {
+    return [
+      "name: default",
+      "steps:",
+      ...discovered.flatMap((command, index) => [
+        `  - name: ${verificationStepName(command, index)}`,
+        `    command: ${command}`,
+        "    required: true"
+      ])
     ].join("\n");
   }
   return [
@@ -68,7 +81,7 @@ function ciProfile() {
 
 function ensureHarnessConfig(projectRoot, options = {}) {
   const profile = options.profile || "generic";
-  writeIfMissing(path.join(projectRoot, "harness", "profiles", "default.yaml"), defaultProfile(profile));
+  writeIfMissing(path.join(projectRoot, "harness", "profiles", "default.yaml"), defaultProfile(profile, projectRoot));
   writeIfMissing(path.join(projectRoot, "harness", "profiles", "fast.yaml"), fastProfile());
   writeIfMissing(path.join(projectRoot, "harness", "profiles", "ci.yaml"), ciProfile());
   writeYamlObject(path.join(projectRoot, "harness", "policies", "shell-policy.yaml"), DEFAULT_SHELL_POLICY);
@@ -79,10 +92,10 @@ function ensureHarnessConfig(projectRoot, options = {}) {
   writeIfMissing(path.join(projectRoot, "harness", "templates", "risk.md"), "# Risks\n\n- None recorded.\n");
   const ciProvider = normalizeCiProvider(options.ciProvider || (options.enableCi ? "github" : "none"));
   if (ciProvider === "github") {
-    return { ci_provider: "github", ci_workflow_path: enableGitHubActionsWorkflow(projectRoot) };
+    return { ci_provider: "github", ci_workflow_path: toPosixRelative(projectRoot, enableGitHubActionsWorkflow(projectRoot)) };
   }
   if (ciProvider === "generic") {
-    return { ci_provider: "generic", ci_workflow_path: enableGenericCiGuide(projectRoot) };
+    return { ci_provider: "generic", ci_workflow_path: toPosixRelative(projectRoot, enableGenericCiGuide(projectRoot)) };
   }
   return { ci_provider: "none", ci_workflow_path: null };
 }
@@ -93,6 +106,15 @@ function normalizeCiProvider(value) {
   if (["github", "github-actions", "actions"].includes(provider)) return "github";
   if (["generic", "other", "manual"].includes(provider)) return "generic";
   throw new Error(`Unsupported CI provider: ${value}`);
+}
+
+function verificationStepName(command, index) {
+  const match = command.match(/^npm (?:run )?(.+)$/);
+  return match ? match[1].replace(/[^A-Za-z0-9_.-]+/g, "-") : `step-${index + 1}`;
+}
+
+function toPosixRelative(projectRoot, targetPath) {
+  return path.relative(projectRoot, targetPath).split(path.sep).join("/");
 }
 
 function enableGitHubActionsWorkflow(projectRoot) {

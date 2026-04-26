@@ -33,20 +33,39 @@ function evaluateShellPolicy(projectRoot, command) {
 function evaluateFileScope(projectRoot, filePath) {
   const policy = loadYaml(path.join(projectRoot, "harness", "policies", "file-scope.yaml"), DEFAULT_FILE_SCOPE);
   const absolute = path.resolve(projectRoot, filePath);
+  const validation = validateFileScopePolicy(policy);
+  if (!validation.ok) {
+    return decision("block", validation.reason, { file_path: filePath });
+  }
   for (const blocked of policy.blocked_roots || []) {
-    const blockedRoot = path.resolve(blocked);
+    const blockedRoot = resolvePolicyRoot(projectRoot, blocked);
     if (absolute === blockedRoot || absolute.startsWith(`${blockedRoot}${path.sep}`)) {
       return decision("block", `Write path is outside approved file scope: ${filePath}`, { file_path: filePath });
     }
   }
   const allowedRoots = policy.allowed_roots || ["."];
   const allowed = allowedRoots.some((root) => {
-    const allowedRoot = path.resolve(projectRoot, root);
+    const allowedRoot = resolvePolicyRoot(projectRoot, root);
     return absolute === allowedRoot || absolute.startsWith(`${allowedRoot}${path.sep}`);
   });
   return allowed
     ? decision("allow", "Harness Engineer file scope policy passed.", { file_path: filePath })
     : decision("block", `Write path is outside approved file scope: ${filePath}`, { file_path: filePath });
+}
+
+function validateFileScopePolicy(policy) {
+  for (const key of ["allowed_roots", "blocked_roots"]) {
+    const value = policy[key];
+    if (value === undefined) continue;
+    if (!Array.isArray(value)) return { ok: false, reason: `${key} must be an array of path strings.` };
+    const invalid = value.find((item) => typeof item !== "string");
+    if (invalid !== undefined) return { ok: false, reason: `${key} entries must be path strings.` };
+  }
+  return { ok: true };
+}
+
+function resolvePolicyRoot(projectRoot, root) {
+  return path.isAbsolute(root) ? path.resolve(root) : path.resolve(projectRoot, root);
 }
 
 function findMatch(rules, command) {

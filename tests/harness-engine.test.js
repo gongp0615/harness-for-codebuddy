@@ -9,6 +9,7 @@ const test = require("node:test");
 const { initProject, planTask, recover, status, evidenceSummary } = require("../scripts/harness-engine/state");
 const { inspectProfile, listProfiles, runProfile } = require("../scripts/harness-engine/profile-runner");
 const { evaluatePolicy } = require("../scripts/harness-engine/policy");
+const { parseSimpleYaml } = require("../scripts/harness-engine/yaml");
 
 function tempProject(name = "harness-engine-") {
   return fs.mkdtempSync(path.join(os.tmpdir(), name));
@@ -37,7 +38,7 @@ test("initProject can explicitly enable GitHub Actions CI workflow", () => {
   const result = initProject(root, { profile: "node", ciProvider: "github" });
   const workflowPath = path.join(root, ".github", "workflows", "harness.yml");
 
-  assert.equal(result.ci_workflow_path, workflowPath);
+  assert.equal(result.ci_workflow_path, ".github/workflows/harness.yml");
   assert.equal(fs.existsSync(workflowPath), true);
   assert.match(fs.readFileSync(workflowPath, "utf8"), /Harness Verification/);
 });
@@ -47,7 +48,7 @@ test("initProject can create a generic CI integration guide", () => {
   const result = initProject(root, { profile: "generic", ciProvider: "generic" });
   const ciPath = path.join(root, "harness", "ci", "harness-ci.md");
 
-  assert.equal(result.ci_workflow_path, ciPath);
+  assert.equal(result.ci_workflow_path, "harness/ci/harness-ci.md");
   assert.equal(fs.existsSync(ciPath), true);
   assert.match(fs.readFileSync(ciPath, "utf8"), /harness verify --profile ci/);
 });
@@ -174,6 +175,61 @@ test("evaluatePolicy reads policy files for block, warn, approval, and file scop
     "block"
   );
   assert.equal(evaluatePolicy(root, { tool_name: "Bash", tool_input: { command: "npm test" } }).decision, "allow");
+});
+
+test("file-scope policy handles Windows paths and invalid root schemas without crashing", () => {
+  const root = tempProject();
+  initProject(root);
+
+  const defaultDecision = evaluatePolicy(root, { tool_name: "Write", tool_input: { file_path: "README.md" } });
+  assert.equal(["allow", "block"].includes(defaultDecision.decision), true);
+
+  const parsed = parseSimpleYaml([
+    "allowed_roots:",
+    "  - .",
+    "blocked_roots:",
+    "  - C:\\Windows",
+    "  - \"D:\\\\Tools:Archive\""
+  ].join("\n"));
+  assert.deepEqual(parsed.blocked_roots, ["C:\\Windows", "D:\\Tools:Archive"]);
+
+  fs.writeFileSync(
+    path.join(root, "harness", "policies", "file-scope.yaml"),
+    [
+      "allowed_roots:",
+      "  - .",
+      "blocked_roots:",
+      "  - build"
+    ].join("\n")
+  );
+  assert.equal(
+    evaluatePolicy(root, { tool_name: "Write", tool_input: { file_path: "build/out.txt" } }).decision,
+    "block"
+  );
+
+  fs.writeFileSync(
+    path.join(root, "harness", "policies", "file-scope.yaml"),
+    [
+      "allowed_roots:",
+      "  - pattern: not-a-string",
+      "blocked_roots:",
+      "  - /tmp"
+    ].join("\n")
+  );
+  const invalid = evaluatePolicy(root, { tool_name: "Write", tool_input: { file_path: "README.md" } });
+  assert.equal(invalid.decision, "block");
+  assert.match(invalid.reason, /allowed_roots entries must be path strings/i);
+});
+
+test("generic init uses discovered package scripts when available", () => {
+  const root = tempProject();
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { lint: "eslint .", test: "node --test" } }));
+
+  initProject(root, { profile: "generic" });
+  const profile = fs.readFileSync(path.join(root, "harness", "profiles", "default.yaml"), "utf8");
+
+  assert.match(profile, /command: npm run lint/);
+  assert.match(profile, /command: npm test/);
 });
 
 test("evidenceSummary formats profile results for PR descriptions", () => {

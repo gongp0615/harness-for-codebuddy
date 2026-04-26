@@ -58,13 +58,14 @@ function installCodeBuddyPlugin(options = {}) {
   copyDirectory(sourceDir, pluginDir);
   configureInstalledAgentModels(pluginDir, options);
   writeMarketplace(marketplaceDir);
-  writeSettings(home, marketplaceDir, options.binDir);
+  const launcherPath = writeSettings(home, marketplaceDir, options.binDir);
 
   return {
     home_dir: home,
     plugin_dir: pluginDir,
     marketplace_dir: marketplaceDir,
     settings_path: path.join(home, "settings.json"),
+    launcher_path: launcherPath,
     marketplace_name: MARKETPLACE_NAME,
     plugin_name: PLUGIN_NAME,
     agent_models: resolveAgentModelConfig(options)
@@ -138,6 +139,7 @@ function writeSettings(home, marketplaceDir, binDirOverride) {
     `#!/usr/bin/env bash\nexport CODEBUDDY_HOME="${home}"\nexec node "${path.join(pluginDirFromMarketplace(marketplaceDir), "scripts", "cli.js")}" "$@"\n`
   );
   fs.chmodSync(launcher, 0o755);
+  return launcher;
 }
 
 function pluginDirFromMarketplace(marketplaceDir) {

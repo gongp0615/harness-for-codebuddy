@@ -99,8 +99,9 @@ node "$source_dir/scripts/cli.js" install --source "$source_dir" --home "$CODEBU
 if command -v harness >/dev/null 2>&1; then
   harness doctor
 else
-  "$HOME/.local/bin/harness" doctor
-  echo "Add \$HOME/.local/bin to PATH to use the 'harness' command directly."
+  fallback_harness="${HARNESS_BIN_DIR:-$HOME/.local/bin}/harness"
+  "$fallback_harness" doctor
+  echo "Add $(dirname "$fallback_harness") to PATH to use the 'harness' command directly."
 fi
 
 ci_provider="${HARNESS_INSTALL_CI:-}"

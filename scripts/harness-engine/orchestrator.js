@@ -291,7 +291,8 @@ function isExecutable(filePath) {
 function invokeCodeBuddy(executable, agent, prompt, cwd) {
   const startedAt = now();
   const args = ["-p", prompt, ...HEADLESS_ARGS, "--agent", agent];
-  const completed = cp.spawnSync(executable, args, {
+  const invocation = codeBuddyInvocation(executable, args);
+  const completed = cp.spawnSync(invocation.command, invocation.args, {
     cwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -308,6 +309,21 @@ function invokeCodeBuddy(executable, agent, prompt, cwd) {
     stderr: trim(completed.stderr),
     error: completed.error ? completed.error.message : null
   };
+}
+
+function codeBuddyInvocation(executable, args, platform = process.platform) {
+  const extension = path.extname(executable).toLowerCase();
+  if (platform === "win32" && [".cmd", ".bat"].includes(extension)) {
+    return {
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", [executable, ...args].map(quoteCmdArg).join(" ")]
+    };
+  }
+  return { command: executable, args };
+}
+
+function quoteCmdArg(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
 }
 
 function buildEvaluation(round, profile, verification, verifier, previousEvaluation) {
@@ -526,6 +542,8 @@ function now() {
 
 module.exports = {
   DEFAULT_MAX_ROUNDS,
+  codeBuddyInvocation,
   findCodeBuddyExecutable,
+  invokeCodeBuddy,
   runAutonomous
 };

@@ -28,7 +28,9 @@ test("install copies plugin into a local CodeBuddy marketplace and enables it", 
   const result = installCodeBuddyPlugin({ sourceDir: source, homeDir: home, binDir: path.join(home, ".local", "bin") });
 
   assert.equal(result.marketplace_name, "harness-engineer-local");
+  assert.equal(result.launcher_path, path.join(home, ".local", "bin", "harness"));
   assert.ok(fs.existsSync(path.join(result.plugin_dir, ".codebuddy-plugin", "plugin.json")));
+  assert.ok(fs.existsSync(result.launcher_path));
   assert.ok(fs.existsSync(path.join(result.marketplace_dir, ".codebuddy-plugin", "marketplace.json")));
 
   const settings = JSON.parse(fs.readFileSync(path.join(home, "settings.json"), "utf8"));

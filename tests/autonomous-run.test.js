@@ -7,7 +7,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const { runCli } = require("../scripts/cli");
-const { findCodeBuddyExecutable, runAutonomous } = require("../scripts/harness-engine/orchestrator");
+const { codeBuddyInvocation, findCodeBuddyExecutable, runAutonomous } = require("../scripts/harness-engine/orchestrator");
 const { status, recover } = require("../scripts/harness-engine/state");
 
 function tempProject() {
@@ -36,7 +36,8 @@ function makeFakeCodeBuddy(root, options = {}) {
         "shift",
         "goto loop",
         ":done",
-        "if \"%agent%\"==\"planner\" (echo " + plannerOutput.replace(/"/g, "\\\"") + ") else if \"%agent%\"==\"verifier\" (echo {\"pass\":true,\"safe_to_continue\":true,\"summary\":\"ok\",\"fix_instructions\":\"\"}) else (echo %agent% output)"
+        "echo %agent%>> .fake-codebuddy-log",
+        "if \"%agent%\"==\"planner\" (echo " + plannerOutput.replace(/"/g, "\\\"") + ") else if \"%agent%\"==\"verifier\" (echo " + verifierOutput.replace(/"/g, "\\\"") + ") else (echo %agent% output)"
       ].join("\r\n")
     : [
         "#!/usr/bin/env sh",
@@ -268,4 +269,15 @@ test("findCodeBuddyExecutable locates cbc on PATH", () => {
   } finally {
     process.env.PATH = oldPath;
   }
+});
+
+test("Windows cmd and bat CodeBuddy launch through cmd.exe", () => {
+  const invocation = codeBuddyInvocation("C:\\Tools\\codebuddy.cmd", ["-p", "hello", "--agent", "planner"], "win32");
+
+  assert.equal(invocation.command, "cmd.exe");
+  assert.deepEqual(invocation.args.slice(0, 3), ["/d", "/s", "/c"]);
+  assert.match(invocation.args[3], /codebuddy\.cmd/);
+  assert.match(invocation.args[3], /--agent" "planner/);
+
+  assert.equal(codeBuddyInvocation("C:\\Tools\\codebuddy.exe", [], "win32").command, "C:\\Tools\\codebuddy.exe");
 });

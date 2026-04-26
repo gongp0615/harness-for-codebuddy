@@ -91,7 +91,7 @@ test("init --ci github creates the GitHub Actions workflow from the template", (
   const result = capture(() => runCli(["init", "--profile", "node", "--ci", "github"], root));
 
   assert.equal(result.code, 0);
-  assert.equal(JSON.parse(result.stdout).ci_workflow_path.endsWith(".github/workflows/harness.yml"), true);
+  assert.equal(JSON.parse(result.stdout).ci_workflow_path, ".github/workflows/harness.yml");
   assert.equal(fs.existsSync(path.join(root, ".github", "workflows", "harness.yml")), true);
 });
 
@@ -100,7 +100,7 @@ test("init --ci generic creates a generic CI guide instead of a GitHub workflow"
   const result = capture(() => runCli(["init", "--profile", "generic", "--ci", "generic"], root));
 
   assert.equal(result.code, 0);
-  assert.equal(JSON.parse(result.stdout).ci_workflow_path.endsWith("harness/ci/harness-ci.md"), true);
+  assert.equal(JSON.parse(result.stdout).ci_workflow_path, "harness/ci/harness-ci.md");
   assert.equal(fs.existsSync(path.join(root, "harness", "ci", "harness-ci.md")), true);
   assert.equal(fs.existsSync(path.join(root, ".github", "workflows", "harness.yml")), false);
 });
@@ -109,13 +109,15 @@ test("Harness plugin agents declare valid CodeBuddy frontmatter", () => {
   const root = path.join(__dirname, "..");
   for (const agent of HARNESS_AGENT_NAMES) {
     const text = fs.readFileSync(path.join(root, "agents", `${agent}.md`), "utf8");
-    assert.match(text, /^---\n/);
-    const end = text.indexOf("\n---\n", 4);
+    assert.match(text, /^---\r?\n/);
+    const end = text.search(/\r?\n---\r?\n/);
     assert.notEqual(end, -1);
-    const frontmatter = text.slice(4, end);
-    assert.match(frontmatter, new RegExp(`(^|\\n)name: ${agent}(\\n|$)`));
-    assert.match(frontmatter, /(^|\n)description: .+(\n|$)/);
-    assert.match(frontmatter, /(^|\n)model: claude-sonnet-4\.6(\n|$)/);
-    assert.match(text.slice(end + "\n---\n".length).trimStart(), /^# /);
+    const frontmatterStart = text.startsWith("---\r\n") ? 5 : 4;
+    const marker = text.match(/\r?\n---\r?\n/);
+    const frontmatter = text.slice(frontmatterStart, end);
+    assert.match(frontmatter, new RegExp(`(^|\\r?\\n)name: ${agent}(\\r?\\n|$)`));
+    assert.match(frontmatter, /(^|\r?\n)description: .+(\r?\n|$)/);
+    assert.match(frontmatter, /(^|\r?\n)model: claude-sonnet-4\.6(\r?\n|$)/);
+    assert.match(text.slice(end + marker[0].length).trimStart(), /^# /);
   }
 });

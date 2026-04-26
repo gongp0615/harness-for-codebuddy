@@ -20,7 +20,7 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
     }
     if (command === "install") {
       const result = installCodeBuddyPlugin(parseInstallArgs(argv.slice(1)));
-      process.stdout.write(`harness-engineer installed for CodeBuddy\nPlugin: ${result.plugin_dir}\nMarketplace: ${result.marketplace_dir}\nSettings: ${result.settings_path}\n`);
+      process.stdout.write(`harness-engineer installed for CodeBuddy\nPlugin: ${result.plugin_dir}\nMarketplace: ${result.marketplace_dir}\nSettings: ${result.settings_path}\nLauncher: ${result.launcher_path}\n`);
       return 0;
     }
     if (command === "uninstall") {
