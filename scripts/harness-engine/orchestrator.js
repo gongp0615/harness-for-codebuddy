@@ -295,6 +295,7 @@ function invokeCodeBuddy(executable, agent, prompt, cwd) {
   const completed = cp.spawnSync(invocation.command, invocation.args, {
     cwd,
     encoding: "utf8",
+    env: { ...process.env, HARNESS_AGENT_NAME: agent },
     stdio: ["ignore", "pipe", "pipe"],
     timeout: 30 * 60 * 1000
   });
@@ -315,15 +316,11 @@ function codeBuddyInvocation(executable, args, platform = process.platform) {
   const extension = path.extname(executable).toLowerCase();
   if (platform === "win32" && [".cmd", ".bat"].includes(extension)) {
     return {
-      command: "cmd.exe",
-      args: ["/d", "/s", "/c", [executable, ...args].map(quoteCmdArg).join(" ")]
+      command: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/c", executable, ...args]
     };
   }
   return { command: executable, args };
-}
-
-function quoteCmdArg(value) {
-  return `"${String(value).replace(/"/g, '""')}"`;
 }
 
 function buildEvaluation(round, profile, verification, verifier, previousEvaluation) {

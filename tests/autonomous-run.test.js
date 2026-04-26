@@ -16,6 +16,7 @@ function tempProject() {
 
 function makeFakeCodeBuddy(root, options = {}) {
   const bin = path.join(root, process.platform === "win32" ? "codebuddy.cmd" : "codebuddy");
+  const helper = path.join(root, "fake-codebuddy.js");
   const plannerOutput = JSON.stringify(options.plannerOutput || {
     ready_to_execute: true,
     missing_requirements: [],
@@ -26,34 +27,39 @@ function makeFakeCodeBuddy(root, options = {}) {
   const verifierOutput = options.verifierOutput === undefined
     ? JSON.stringify({ pass: true, safe_to_continue: true, summary: "ok", fix_instructions: "" })
     : String(options.verifierOutput);
+  fs.writeFileSync(helper, [
+    '"use strict";',
+    "const fs = require(\"node:fs\");",
+    `const plannerOutput = ${JSON.stringify(plannerOutput)};`,
+    `const verifierOutput = ${JSON.stringify(verifierOutput)};`,
+    "const rawArgs = process.env.HARNESS_FAKE_ARGS || \"\";",
+    "let agent = process.env.HARNESS_AGENT_NAME || \"unknown\";",
+    "if (agent === \"unknown\" && rawArgs.includes(\"--agent planner\")) agent = \"planner\";",
+    "if (agent === \"unknown\" && rawArgs.includes(\"--agent verifier\")) agent = \"verifier\";",
+    "if (agent === \"unknown\" && rawArgs.includes(\"--agent executor\")) agent = \"executor\";",
+    "if (agent === \"unknown\") {",
+    "  for (let index = 2; index < process.argv.length; index += 1) {",
+    "    if (process.argv[index] === \"--agent\") {",
+    "      agent = process.argv[index + 1] || \"unknown\";",
+    "      break;",
+    "    }",
+    "  }",
+    "}",
+    "fs.appendFileSync(\".fake-codebuddy-log\", `${agent}\\n`);",
+    "if (agent === \"planner\") process.stdout.write(`${plannerOutput}\\n`);",
+    "else if (agent === \"verifier\") process.stdout.write(`${verifierOutput}\\n`);",
+    "else process.stdout.write(`${agent} output\\n`);"
+  ].join("\n"));
   const script = process.platform === "win32"
     ? [
         "@echo off",
-        "set agent=unknown",
-        ":loop",
-        "if \"%1\"==\"--agent\" set agent=%2",
-        "if \"%1\"==\"\" goto done",
-        "shift",
-        "goto loop",
-        ":done",
-        "echo %agent%>> .fake-codebuddy-log",
-        "if \"%agent%\"==\"planner\" (echo " + plannerOutput.replace(/"/g, "\\\"") + ") else if \"%agent%\"==\"verifier\" (echo " + verifierOutput.replace(/"/g, "\\\"") + ") else (echo %agent% output)"
+        "setlocal",
+        "set \"HARNESS_FAKE_ARGS=%*\"",
+        `node "${helper}"`
       ].join("\r\n")
     : [
         "#!/usr/bin/env sh",
-        "agent=unknown",
-        "while [ \"$#\" -gt 0 ]; do",
-        "  if [ \"$1\" = \"--agent\" ]; then shift; agent=\"$1\"; fi",
-        "  shift || break",
-        "done",
-        "printf '%s\\n' \"$agent\" >> .fake-codebuddy-log",
-        "if [ \"$agent\" = \"planner\" ]; then",
-        `  printf '%s\\n' ${JSON.stringify(plannerOutput)}`,
-        "elif [ \"$agent\" = \"verifier\" ]; then",
-        `  printf '%s\\n' ${JSON.stringify(verifierOutput)}`,
-        "else",
-        "  printf '%s output\\n' \"$agent\"",
-        "fi"
+        `exec node ${JSON.stringify(helper)} \"$@\"`
       ].join("\n");
   fs.writeFileSync(bin, script);
   fs.chmodSync(bin, 0o755);
@@ -274,10 +280,8 @@ test("findCodeBuddyExecutable locates cbc on PATH", () => {
 test("Windows cmd and bat CodeBuddy launch through cmd.exe", () => {
   const invocation = codeBuddyInvocation("C:\\Tools\\codebuddy.cmd", ["-p", "hello", "--agent", "planner"], "win32");
 
-  assert.equal(invocation.command, "cmd.exe");
-  assert.deepEqual(invocation.args.slice(0, 3), ["/d", "/s", "/c"]);
-  assert.match(invocation.args[3], /codebuddy\.cmd/);
-  assert.match(invocation.args[3], /--agent" "planner/);
+  assert.equal(invocation.command, process.env.ComSpec || "cmd.exe");
+  assert.deepEqual(invocation.args, ["/d", "/c", "C:\\Tools\\codebuddy.cmd", "-p", "hello", "--agent", "planner"]);
 
   assert.equal(codeBuddyInvocation("C:\\Tools\\codebuddy.exe", [], "win32").command, "C:\\Tools\\codebuddy.exe");
 });

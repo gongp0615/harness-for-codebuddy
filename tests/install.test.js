@@ -10,15 +10,17 @@ const { AGENT_NAMES, installCodeBuddyPlugin, uninstallCodeBuddyPlugin } = requir
 
 function readFrontmatter(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
-  assert.match(text, /^---\n/);
-  const end = text.indexOf("\n---\n", 4);
+  assert.match(text, /^---\r?\n/);
+  const end = text.search(/\r?\n---\r?\n/);
   assert.notEqual(end, -1);
+  const frontmatterStart = text.startsWith("---\r\n") ? 5 : 4;
+  const marker = text.match(/\r?\n---\r?\n/);
   const data = {};
-  for (const line of text.slice(4, end).split(/\r?\n/)) {
+  for (const line of text.slice(frontmatterStart, end).split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index !== -1) data[line.slice(0, index).trim()] = line.slice(index + 1).trim();
   }
-  return { data, text };
+  return { data, text, body: text.slice(end + marker[0].length) };
 }
 
 test("install copies plugin into a local CodeBuddy marketplace and enables it", () => {

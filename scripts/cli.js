@@ -60,7 +60,8 @@ function runCli(argv = process.argv.slice(2), cwd = process.cwd()) {
         return 0;
       }
       if (subcommand === "show" || subcommand === "doctor") {
-        const name = argv[2] || parseOption(argv, "--profile") || "default";
+        const positionalName = argv.slice(2).find((arg, index, args) => !arg.startsWith("--") && !args[index - 1]?.startsWith("--"));
+        const name = positionalName || parseOption(argv, "--profile") || "default";
         const result = inspectProfile(cwd, name);
         printJson(result);
         return subcommand === "doctor" && !result.ready ? 1 : 0;

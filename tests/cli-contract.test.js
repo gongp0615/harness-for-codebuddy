@@ -76,6 +76,10 @@ test("CLI supports profile list, show, and doctor", () => {
   const doctor = capture(() => runCli(["profile", "doctor", "default"], root));
   assert.equal(doctor.code, 1);
   assert.match(JSON.parse(doctor.stdout).reasons.join("\n"), /no executable verification steps/i);
+
+  const doctorByFlag = capture(() => runCli(["profile", "doctor", "--profile", "default"], root));
+  assert.equal(doctorByFlag.code, 1);
+  assert.equal(JSON.parse(doctorByFlag.stdout).requested_name, "default");
 });
 
 test("status returns empty task state before initialization", () => {

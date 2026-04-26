@@ -1,5 +1,5 @@
 name: default
 steps:
-  - name: smoke
-    command: node --version
+  - name: unit
+    command: npm test
     required: true

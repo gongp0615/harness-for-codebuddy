@@ -3,3 +3,7 @@ steps:
   - name: default
     command: npm run harness -- verify --profile default --json
     required: true
+  - name: integration
+    command: npm run test:integration
+    required: true
+    artifacts: [.harness-engineer/integration-logs]
