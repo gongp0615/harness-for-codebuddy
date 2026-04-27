@@ -63,6 +63,9 @@ test("agent model TUI renders agent tabs above model options", { skip: !hasScrip
   assert.match(result.stdout, /规划[\s\S]*执行[\s\S]*验证[\s\S]*调试[\s\S]*评审[\s\S]*确认/);
   assert.match(result.stdout, /为 Harness 规划 agent 选择模型/);
   assert.match(result.stdout, /gpt-5\.4（推荐）/);
+  assert.match(result.stdout, /claude-sonnet-4\.6-1m/);
+  assert.match(result.stdout, /deepseek-v3\.2-volc/);
+  assert.match(result.stdout, /hunyuan-2\.0-instruct-ioa/);
   assert.doesNotMatch(result.stdout, /选择流程/);
   assert.match(result.stdout, /跳过模型配置/);
 });

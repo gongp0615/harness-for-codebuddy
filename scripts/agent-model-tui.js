@@ -3,6 +3,7 @@
 
 const fs = require("node:fs");
 const color = require("picocolors").createColors(true);
+const { KNOWN_AGENT_MODELS } = require("./installer");
 
 const outputPath = process.argv[2];
 if (!outputPath) {
@@ -21,20 +22,34 @@ const confirmTab = { key: "confirm", label: "确认" };
 const tabs = [...agents, confirmTab];
 
 function optionsFor(agent) {
+  const knownOptions = KNOWN_AGENT_MODELS.map((model) => ({
+    value: model,
+    label: model === agent.fallback ? `${model}（推荐）` : model,
+    hint: model === agent.fallback ? "按当前 agent 职责选择的默认模型" : modelHint(model)
+  }));
   return [
-    { value: agent.fallback, label: `${agent.fallback}（推荐）`, hint: "按当前 agent 职责选择的默认模型" },
-    { value: "gpt-5.4", label: "gpt-5.4", hint: "适合规划、调试和评审等高强度推理任务" },
-    { value: "gpt-5.3-codex", label: "gpt-5.3-codex", hint: "偏代码执行和验证的 Codex 模型" },
-    { value: "claude-sonnet-4.6", label: "claude-sonnet-4.6", hint: "均衡的 Claude 工程模型，适合执行实现" },
-    { value: "claude-haiku-4.5", label: "claude-haiku-4.5", hint: "更快、更省预算的 Claude 模型" },
-    { value: "gemini-3.1-pro", label: "gemini-3.1-pro", hint: "适合混合任务的通用推理备选" },
-    { value: "kimi-k2-thinking", label: "kimi-k2-thinking", hint: "偏深度思考的 Kimi 模型" },
+    ...knownOptions,
     { value: "__custom__", label: "输入自定义模型", hint: "手动输入一个准确的 CodeBuddy model id" }
   ];
 }
 
+function modelHint(model) {
+  if (model.startsWith("claude-sonnet")) return "Claude Sonnet，适合执行实现和通用工程任务";
+  if (model.startsWith("claude-opus")) return "Claude Opus，适合复杂规划、评审和深度推理";
+  if (model.startsWith("claude-haiku")) return "Claude Haiku，更快、更省预算";
+  if (model.startsWith("gemini")) return "Gemini，适合通用推理、视觉和前端相关任务";
+  if (model.startsWith("gpt-5.3-codex") || model.startsWith("gpt-5.2-codex") || model.startsWith("gpt-5.1-codex")) return "Codex 系列，适合代码执行和验证";
+  if (model.startsWith("gpt-")) return "GPT 系列，适合规划、调试和评审";
+  if (model.startsWith("kimi")) return "Kimi，偏深度思考和代码任务";
+  if (model.startsWith("glm")) return "GLM，通用推理备选";
+  if (model.startsWith("minimax")) return "MiniMax，通用模型备选";
+  if (model.startsWith("deepseek")) return "DeepSeek，代码和推理备选";
+  if (model.startsWith("hunyuan")) return "Hunyuan，推理和指令模型备选";
+  return "可用于 Harness agent 的 CodeBuddy 模型";
+}
+
 const selections = Object.fromEntries(agents.map((agent) => [agent.key, agent.fallback]));
-const selectedIndexes = Object.fromEntries(agents.map((agent) => [agent.key, 0]));
+const selectedIndexes = Object.fromEntries(agents.map((agent) => [agent.key, Math.max(0, KNOWN_AGENT_MODELS.indexOf(agent.fallback))]));
 let activeTab = 0;
 let customPrompt = null;
 
