@@ -63,7 +63,7 @@ print_model_summary() {
 }
 
 ensure_tui_dependencies() {
-  if [ -d "$source_dir/node_modules/@clack/prompts" ] && [ -d "$source_dir/node_modules/picocolors" ]; then
+  if [ -d "$source_dir/node_modules/picocolors" ]; then
     return 0
   fi
   need npm

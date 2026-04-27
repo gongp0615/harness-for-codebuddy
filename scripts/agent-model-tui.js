@@ -2,6 +2,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const color = require("picocolors").createColors(true);
 
 const outputPath = process.argv[2];
 if (!outputPath) {
@@ -16,6 +17,8 @@ const agents = [
   { key: "debugger", label: "调试", fallback: "gpt-5.4" },
   { key: "reviewer", label: "评审", fallback: "gpt-5.4" }
 ];
+const confirmTab = { key: "confirm", label: "确认" };
+const tabs = [...agents, confirmTab];
 
 function optionsFor(agent) {
   return [
@@ -30,6 +33,11 @@ function optionsFor(agent) {
   ];
 }
 
+const selections = Object.fromEntries(agents.map((agent) => [agent.key, agent.fallback]));
+const selectedIndexes = Object.fromEntries(agents.map((agent) => [agent.key, 0]));
+let activeTab = 0;
+let customPrompt = null;
+
 function shellQuote(value) {
   return String(value).replace(/'/g, "'\\''");
 }
@@ -39,76 +47,13 @@ function writeEnv(values) {
   fs.writeFileSync(outputPath, `${lines.join("\n")}\n`, "utf8");
 }
 
-function formatSelections(selections) {
-  return agents.map((agent) => `${agent.label.padEnd(2)}  ${selections[agent.key]}`).join("\n");
+function finishSkipped() {
+  writeEnv({ HARNESS_AGENT_MODEL_MODE: "skip" });
+  cleanup();
+  process.exit(0);
 }
 
-async function main() {
-  const [{ default: color }, prompts] = await Promise.all([
-    import("picocolors"),
-    import("@clack/prompts")
-  ]);
-
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    writeEnv({ HARNESS_AGENT_MODEL_MODE: "skip" });
-    return;
-  }
-
-  const selections = {};
-  const flow = agents.map((agent) => agent.label).join(color.dim(" → "));
-  prompts.intro(color.bgBlue(color.black(" Harness agent 模型配置 ")));
-  prompts.note(flow, "选择流程");
-
-  for (const agent of agents) {
-    const selected = await prompts.select({
-      message: `为 Harness ${agent.label} agent 选择模型`,
-      options: optionsFor(agent),
-      initialValue: agent.fallback
-    });
-
-    if (prompts.isCancel(selected)) {
-      prompts.cancel("已跳过模型配置，将继承 CodeBuddy 默认值。");
-      writeEnv({ HARNESS_AGENT_MODEL_MODE: "skip" });
-      return;
-    }
-
-    if (selected === "__custom__") {
-      const custom = await prompts.text({
-        message: `输入 Harness ${agent.label} agent 的模型 ID`,
-        placeholder: agent.fallback,
-        defaultValue: agent.fallback,
-        validate(value) {
-          return value.trim() ? undefined : "请输入模型 ID，或按 Esc 跳过模型配置。";
-        }
-      });
-
-      if (prompts.isCancel(custom)) {
-        prompts.cancel("已跳过模型配置，将继承 CodeBuddy 默认值。");
-        writeEnv({ HARNESS_AGENT_MODEL_MODE: "skip" });
-        return;
-      }
-      selections[agent.key] = String(custom).trim() || agent.fallback;
-    } else {
-      selections[agent.key] = selected;
-    }
-  }
-
-  prompts.note(formatSelections(selections), "确认 Harness agent 模型");
-  const accepted = await prompts.select({
-    message: "是否使用以上模型配置?",
-    options: [
-      { value: "accept", label: "确认使用", hint: "写入安装环境变量" },
-      { value: "skip", label: "跳过模型配置", hint: "继承 CodeBuddy 默认值" }
-    ],
-    initialValue: "accept"
-  });
-
-  if (prompts.isCancel(accepted) || accepted === "skip") {
-    prompts.cancel("已跳过模型配置，将继承 CodeBuddy 默认值。");
-    writeEnv({ HARNESS_AGENT_MODEL_MODE: "skip" });
-    return;
-  }
-
+function finishWithSelections() {
   writeEnv({
     HARNESS_AGENT_MODEL_MODE: "custom",
     HARNESS_AGENT_MODEL_PLANNER: selections.planner,
@@ -117,10 +62,174 @@ async function main() {
     HARNESS_AGENT_MODEL_DEBUGGER: selections.debugger,
     HARNESS_AGENT_MODEL_REVIEWER: selections.reviewer
   });
-  prompts.outro(color.green("Harness agent 模型配置已确认。"));
+  cleanup();
+  process.exit(0);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+function cleanup() {
+  if (process.stdin.isTTY) process.stdin.setRawMode(false);
+  process.stdout.write("\x1b[?25h\x1b[0m\n");
+}
+
+function renderTabs() {
+  return tabs.map((tab, index) => {
+    const label = ` ${tab.label} `;
+    return index === activeTab ? color.bgCyan(color.black(label)) : color.gray(label);
+  }).join("  ");
+}
+
+function renderOption(option, selected, index) {
+  const number = `${index + 1}.`;
+  const label = selected ? color.magenta(option.label) : color.green(option.label);
+  return [
+    `│ ${color.gray(number)}  ${label}`,
+    `│     ${color.gray(option.hint)}`
+  ].join("\n");
+}
+
+function renderConfirm() {
+  const rows = agents.map((agent) => `│ ${agent.label.padEnd(2)}  ${color.green(selections[agent.key])}`);
+  return [
+    `│ ${color.green("确认 Harness agent 模型")}`,
+    "│",
+    ...rows,
+    "│",
+    `│ ${color.green("enter")} 确认并继续    ${color.green("esc")} 跳过模型配置`
+  ].join("\n");
+}
+
+function renderCustomPrompt() {
+  return [
+    `│ ${color.green(`为 Harness ${customPrompt.agent.label} agent 输入自定义模型`)}`,
+    "│",
+    `│ ${color.gray("model id")}  ${customPrompt.value}`,
+    "│",
+    `│ ${color.green("enter")} 确认    ${color.green("esc")} 跳过模型配置`
+  ].join("\n");
+}
+
+function renderAgent(agent) {
+  return [
+    `│ ${color.green(`为 Harness ${agent.label} agent 选择模型`)}`,
+    "│",
+    ...optionsFor(agent).map((option, index) => renderOption(option, index === selectedIndexes[agent.key], index)),
+    "│",
+    `│ ${color.green("⇆")} tab   ${color.green("↑↓")} 选择   ${color.green("enter")} 确认   ${color.green("esc")} 跳过模型配置`
+  ].join("\n");
+}
+
+function render() {
+  process.stdout.write("\x1b[2J\x1b[H\x1b[?25l");
+  process.stdout.write(`${color.cyan("▌")} ${renderTabs()}\n\n`);
+
+  if (customPrompt) {
+    process.stdout.write(renderCustomPrompt());
+    return;
+  }
+
+  const tab = tabs[activeTab];
+  if (tab.key === "confirm") {
+    process.stdout.write(renderConfirm());
+    return;
+  }
+
+  process.stdout.write(renderAgent(tab));
+}
+
+function nextTab() {
+  activeTab = Math.min(activeTab + 1, tabs.length - 1);
+}
+
+function previousTab() {
+  activeTab = Math.max(activeTab - 1, 0);
+}
+
+function confirmCurrent() {
+  const tab = tabs[activeTab];
+  if (tab.key === "confirm") {
+    finishWithSelections();
+    return;
+  }
+
+  const option = optionsFor(tab)[selectedIndexes[tab.key]];
+  if (option.value === "__custom__") {
+    customPrompt = { agent: tab, value: "" };
+    return;
+  }
+  selections[tab.key] = option.value;
+  nextTab();
+}
+
+function acceptCustom() {
+  const model = customPrompt.value.trim() || customPrompt.agent.fallback;
+  selections[customPrompt.agent.key] = model;
+  customPrompt = null;
+  nextTab();
+}
+
+function handleEscapeSequence(text) {
+  const tab = tabs[activeTab];
+  if (text === "\u001b[A" && tab.key !== "confirm") {
+    selectedIndexes[tab.key] = Math.max(selectedIndexes[tab.key] - 1, 0);
+    return true;
+  }
+  if (text === "\u001b[B" && tab.key !== "confirm") {
+    selectedIndexes[tab.key] = Math.min(selectedIndexes[tab.key] + 1, optionsFor(tab).length - 1);
+    return true;
+  }
+  if (text === "\u001b[C" || text === "\t") {
+    nextTab();
+    return true;
+  }
+  if (text === "\u001b[D") {
+    previousTab();
+    return true;
+  }
+  return false;
+}
+
+function handleInput(chunk) {
+  const text = chunk.toString("utf8");
+  if (text === "\u001b") finishSkipped();
+  if (handleEscapeSequence(text)) {
+    render();
+    return;
+  }
+
+  for (const char of text) {
+    if (char === "\u0003") {
+      cleanup();
+      process.exit(130);
+    }
+    if (char === "\u001b") finishSkipped();
+
+    if (customPrompt) {
+      if (char === "\r" || char === "\n") {
+        acceptCustom();
+      } else if (char === "\u007f" || char === "\b") {
+        customPrompt.value = customPrompt.value.slice(0, -1);
+      } else if (char >= " ") {
+        customPrompt.value += char;
+      }
+    } else if (char === "\t") {
+      nextTab();
+    } else if (char === "\r" || char === "\n") {
+      confirmCurrent();
+    }
+  }
+  render();
+}
+
+if (!process.stdin.isTTY || !process.stdout.isTTY) {
+  writeEnv({ HARNESS_AGENT_MODEL_MODE: "skip" });
+  process.exit(0);
+}
+
+process.on("exit", () => {
+  if (process.stdin.isTTY) process.stdin.setRawMode(false);
 });
+
+process.stdin.setRawMode(true);
+process.stdin.resume();
+process.stdin.on("data", handleInput);
+render();

@@ -53,16 +53,17 @@ test("agent model TUI accepts role defaults through the confirm page", { skip: !
   });
 });
 
-test("agent model TUI renders Clack-style Chinese prompts", { skip: !hasScriptCommand() }, () => {
+test("agent model TUI renders agent tabs above model options", { skip: !hasScriptCommand() }, () => {
   const source = path.join(__dirname, "..");
   const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "harness-agent-models-")), "models.env");
   const result = runTuiInPty(source, output, "\u001b");
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /[◆◇]/);
+  assert.match(result.stdout, /\x1b\[/);
+  assert.match(result.stdout, /规划[\s\S]*执行[\s\S]*验证[\s\S]*调试[\s\S]*评审[\s\S]*确认/);
   assert.match(result.stdout, /为 Harness 规划 agent 选择模型/);
-  assert.doesNotMatch(result.stdout, /▶ 规划/);
-  assert.doesNotMatch(result.stdout, /Harness agent 模型选择/);
+  assert.match(result.stdout, /gpt-5\.4（推荐）/);
+  assert.doesNotMatch(result.stdout, /选择流程/);
   assert.match(result.stdout, /跳过模型配置/);
 });
 
