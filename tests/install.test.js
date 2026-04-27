@@ -75,14 +75,14 @@ test("install applies per-agent model overrides to installed agents", () => {
     plannerAgentModel: "claude-opus-4.6",
     executorAgentModel: "gemini-3.1-pro",
     verifierAgentModel: "gpt-5.3-codex",
-    debuggerAgentModel: "kimi-k2-thinking",
+    debuggerAgentModel: "minimax-m2.5",
     reviewerAgentModel: "gpt-5.4"
   });
 
   assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "planner.md")).data.model, "claude-opus-4.6");
   assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "executor.md")).data.model, "gemini-3.1-pro");
   assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "verifier.md")).data.model, "gpt-5.3-codex");
-  assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "debugger.md")).data.model, "kimi-k2-thinking");
+  assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "debugger.md")).data.model, "minimax-m2.5");
   assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "reviewer.md")).data.model, "gpt-5.4");
   assert.equal(readFrontmatter(path.join(source, "agents", "executor.md")).data.model, "claude-sonnet-4.6");
 });
@@ -131,16 +131,16 @@ test("install reads non-interactive agent model settings from environment", () =
     homeDir: home,
     binDir: path.join(home, ".local", "bin"),
     env: {
-      HARNESS_AGENT_MODEL: "gpt-5.2",
+      HARNESS_AGENT_MODEL: "gpt-5.4",
       HARNESS_AGENT_MODEL_EXECUTOR: "claude-opus-4.6",
       HARNESS_AGENT_MODEL_REVIEWER: "gpt-5.4"
     }
   });
 
-  assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "planner.md")).data.model, "gpt-5.2");
+  assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "planner.md")).data.model, "gpt-5.4");
   assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "executor.md")).data.model, "claude-opus-4.6");
-  assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "verifier.md")).data.model, "gpt-5.2");
-  assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "debugger.md")).data.model, "gpt-5.2");
+  assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "verifier.md")).data.model, "gpt-5.4");
+  assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "debugger.md")).data.model, "gpt-5.4");
   assert.equal(readFrontmatter(path.join(result.plugin_dir, "agents", "reviewer.md")).data.model, "gpt-5.4");
 });
 
@@ -192,7 +192,7 @@ test("install script respects non-interactive agent model environment variables"
       HARNESS_BIN_DIR: path.join(home, ".local", "bin"),
       HARNESS_AGENT_MODEL: "gpt-5.4",
       HARNESS_AGENT_MODEL_DEBUGGER: "claude-haiku-4.5",
-      HARNESS_AGENT_MODEL_REVIEWER: "kimi-k2-thinking"
+      HARNESS_AGENT_MODEL_REVIEWER: "kimi-k2.5"
     },
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"]
@@ -203,7 +203,7 @@ test("install script respects non-interactive agent model environment variables"
   const pluginDir = path.join(home, "marketplaces", "harness-engineer", "plugins", "harness-engineer");
   assert.equal(readFrontmatter(path.join(pluginDir, "agents", "planner.md")).data.model, "gpt-5.4");
   assert.equal(readFrontmatter(path.join(pluginDir, "agents", "debugger.md")).data.model, "claude-haiku-4.5");
-  assert.equal(readFrontmatter(path.join(pluginDir, "agents", "reviewer.md")).data.model, "kimi-k2-thinking");
+  assert.equal(readFrontmatter(path.join(pluginDir, "agents", "reviewer.md")).data.model, "kimi-k2.5");
 });
 
 test("install script TUI default path configures all Harness agent models", { skip: !hasScriptCommand() }, () => {

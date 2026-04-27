@@ -33,22 +33,9 @@ const MODEL_METADATA = {
   "gemini-2.5-pro": { name: "Gemini-2.5-Pro", credits: "x0.95 credits" },
   "gemini-3.1-flash-lite": { name: "Gemini-3.1-flash-lite", credits: "x0.17 credits" },
   "gpt-5.4": { name: "GPT-5.4", credits: "x1.65 credits" },
-  "gpt-5.2": { name: "GPT-5.2", credits: "x1.33 credits" },
   "gpt-5.3-codex": { name: "GPT-5.3-Codex", credits: "x1.35 credits" },
-  "gpt-5.2-codex": { name: "GPT-5.2-Codex", credits: "x1.33 credits" },
-  "gpt-5.1": { name: "GPT-5.1", credits: "x0.95 credits" },
-  "gpt-5.1-codex": { name: "GPT-5.1-Codex", credits: "x0.95 credits" },
-  "gpt-5.1-codex-max": { name: "GPT-5.1-Codex-Max", credits: "x0.95 credits" },
-  "gpt-5.1-codex-mini": { name: "GPT-5.1-Codex-Mini", credits: "x0.19 credits" },
   "kimi-k2.5": { name: "Kimi-K2.5", credits: "x0.00 credits" },
-  "kimi-k2-thinking": { name: "Kimi-K2-Thinking", credits: "x0.46 credits" },
   "glm-5.1": { name: "GLM-5.1", credits: "x1.06 credits" },
-  "glm-5.0": { name: "GLM-5.0", credits: "x0.34 credits" },
-  "glm-5.0-turbo": { name: "GLM-5.0-Turbo", credits: "x0.95 credits" },
-  "glm-5v-turbo": { name: "GLM-5v-Turbo", credits: "x0.95 credits" },
-  "glm-4.7": { name: "GLM-4.7", credits: "x0.00 credits" },
-  "glm-4.6": { name: "GLM-4.6", credits: "x0.00 credits" },
-  "glm-4.6v": { name: "GLM-4.6V", credits: "x0.00 credits" },
   "minimax-m2.5": { name: "MiniMax-M2.5", credits: "x0.17 credits" },
   "deepseek-v3-2-volc": { name: "DeepSeek-V3.2", credits: "x0.00 credits" },
   "hunyuan-2.0-thinking-ioa": { name: "Hunyuan-2.0-Thinking", credits: "x0.00 credits" },
@@ -77,7 +64,7 @@ function modelHint(model) {
   if (model.startsWith("claude-opus")) return "Claude Opus，适合复杂规划、评审和深度推理";
   if (model.startsWith("claude-haiku")) return "Claude Haiku，更快、更省预算";
   if (model.startsWith("gemini")) return "Gemini，适合通用推理、视觉和前端相关任务";
-  if (model.startsWith("gpt-5.3-codex") || model.startsWith("gpt-5.2-codex") || model.startsWith("gpt-5.1-codex")) return "Codex 系列，适合代码执行和验证";
+  if (model.startsWith("gpt-5.3-codex")) return "Codex 系列，适合代码执行和验证";
   if (model.startsWith("gpt-")) return "GPT 系列，适合规划、调试和评审";
   if (model.startsWith("kimi")) return "Kimi，偏深度思考和代码任务";
   if (model.startsWith("glm")) return "GLM，通用推理备选";

@@ -66,6 +66,13 @@ test("agent model TUI renders agent tabs above model options", { skip: !hasScrip
   assert.match(result.stdout, /Claude-Sonnet-4\.6-1M\s+【claude-sonnet-4\.6-1m】\s+\(x2\.00 credits\)/);
   assert.match(result.stdout, /DeepSeek-V3\.2\s+【deepseek-v3-2-volc】\s+\(x0\.00 credits\)/);
   assert.match(result.stdout, /Hunyuan-2\.0-Instruct\s+【hunyuan-2\.0-instruct-ioa】/);
+  assert.doesNotMatch(result.stdout, /GPT-5\.2\s+【gpt-5\.2】/);
+  assert.doesNotMatch(result.stdout, /GPT-5\.2-Codex/);
+  assert.doesNotMatch(result.stdout, /GPT-5\.1/);
+  assert.doesNotMatch(result.stdout, /Kimi-K2-Thinking/);
+  assert.doesNotMatch(result.stdout, /GLM-5\.0/);
+  assert.doesNotMatch(result.stdout, /GLM-4\.7/);
+  assert.doesNotMatch(result.stdout, /GLM-4\.6/);
   assert.doesNotMatch(result.stdout, /选择流程/);
   assert.match(result.stdout, /跳过模型配置/);
 });
