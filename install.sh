@@ -44,6 +44,15 @@ fi
 default_agent_model="${HARNESS_AGENT_MODEL:-claude-sonnet-4.6}"
 agent_model_preset=""
 
+print_question_header() {
+  local title="$1"
+  local question="$2"
+  echo
+  echo "$title"
+  echo "$question"
+  echo
+}
+
 print_model_summary() {
   echo "Harness agent model configuration:"
   echo "  planner : ${HARNESS_AGENT_MODEL_PLANNER:-${HARNESS_AGENT_MODEL:-$default_agent_model}}"
@@ -57,15 +66,18 @@ select_model_option() {
   local fallback="$2"
   local answer
   echo >&2
-  echo "Select model for Harness ${agent}:" >&2
-  echo "  1) ${fallback} (recommended default)" >&2
-  echo "  2) gpt-5.4 (strong planning/review)" >&2
-  echo "  3) gpt-5.3-codex (coding-focused)" >&2
-  echo "  4) claude-sonnet-4.6 (balanced Claude)" >&2
-  echo "  5) claude-haiku-4.5 (fast/cheap Claude)" >&2
-  echo "  6) gemini-3.1-pro (broad reasoning/visual fallback)" >&2
-  echo "  7) custom model id" >&2
-  printf "Choose [1-7, default 1]: " >&2
+  echo "Question: Harness ${agent} model" >&2
+  echo "Which model should the ${agent} agent use?" >&2
+  echo >&2
+  echo "  1. ${fallback} (Recommended)  Default for this role." >&2
+  echo "  2. gpt-5.4                 Strong planning/review/debugging." >&2
+  echo "  3. gpt-5.3-codex           Coding-focused executor/verifier model." >&2
+  echo "  4. claude-sonnet-4.6        Balanced Claude model." >&2
+  echo "  5. claude-haiku-4.5         Fast/budget Claude model." >&2
+  echo "  6. gemini-3.1-pro           Broad reasoning/visual fallback." >&2
+  echo "  7. Custom model id          Type an exact CodeBuddy model id next." >&2
+  echo >&2
+  printf "Enter choice [1-7, default 1]: " >&2
   harness_read answer || answer=""
   case "$answer" in
     ""|1) printf "%s" "$fallback" ;;
@@ -91,20 +103,23 @@ select_model_option() {
 
 configure_agent_models_interactive() {
   local answer
-  echo "Configure Harness agent models:"
-  echo "  1) Recommended balanced"
-  echo "     planner=gpt-5.4, executor=claude-sonnet-4.6, verifier=gpt-5.3-codex, debugger=gpt-5.4"
-  echo "  2) Claude-only"
-  echo "     claude-sonnet-4.6 for all Harness agents"
-  echo "  3) OpenAI-only"
-  echo "     gpt-5.4 for planning/debugging, gpt-5.3-codex for execution/verification"
-  echo "  4) Fast/budget"
-  echo "     claude-haiku-4.5 for all Harness agents"
-  echo "  5) Customize each agent"
-  echo "     choose planner/executor/verifier/debugger one by one"
-  echo "  6) Skip model configuration"
-  echo "     inherit CodeBuddy defaults"
-  printf "Choose [1-6, default 1]: "
+  print_question_header \
+    "Question 1/1 (1 unanswered)" \
+    "How should Harness configure models for its CodeBuddy agents?"
+  echo "  1. Recommended balanced (Recommended)"
+  echo "     Best default: GPT for planning/review, Claude for execution, Codex for verification."
+  echo "  2. Claude-only"
+  echo "     Use claude-sonnet-4.6 for every Harness agent."
+  echo "  3. OpenAI-only"
+  echo "     Use gpt-5.4 for planning/debugging and gpt-5.3-codex for execution/verification."
+  echo "  4. Fast/budget"
+  echo "     Use claude-haiku-4.5 for every Harness agent."
+  echo "  5. Customize each agent"
+  echo "     Pick planner, executor, verifier, and debugger models one by one."
+  echo "  6. Skip model configuration"
+  echo "     Leave model unset so CodeBuddy inherits its defaults."
+  echo
+  printf "Enter choice [1-6, default 1]: "
   harness_read answer || answer=""
   case "$answer" in
     ""|1|recommended|balanced)
@@ -183,11 +198,17 @@ if [ -z "$ci_provider" ] && [ "${HARNESS_INSTALL_ENABLE_CI:-}" = "1" ]; then
   ci_provider="github"
 fi
 if [ -z "$ci_provider" ] && harness_has_tty; then
-  echo "Select Harness CI setup for the current directory:"
-  echo "  1) none - skip CI setup"
-  echo "  2) github - create .github/workflows/harness.yml"
-  echo "  3) generic - create harness/ci/harness-ci.md integration guide"
-  printf "Choose [1/2/3, default 1]: "
+  print_question_header \
+    "Question 1/1 (1 unanswered)" \
+    "Should Harness add CI verification files to the current project?"
+  echo "  1. None (Recommended)"
+  echo "     Skip CI setup now; you can run harness init --ci later."
+  echo "  2. GitHub Actions"
+  echo "     Create .github/workflows/harness.yml."
+  echo "  3. Generic"
+  echo "     Create harness/ci/harness-ci.md with integration guidance."
+  echo
+  printf "Enter choice [1-3, default 1]: "
   harness_read answer || answer=""
   case "$answer" in
     2|github|GitHub|github-actions) ci_provider="github" ;;
